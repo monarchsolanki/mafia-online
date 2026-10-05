@@ -1,0 +1,16 @@
+{
+  "name": "Omertà — Mafia Game Master",
+  "short_name": "Omertà",
+  "description": "Run a whole Mafia night from one phone: secret roles, guided nights, automatic rulings.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0810",
+  "theme_color": "#0a0810",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

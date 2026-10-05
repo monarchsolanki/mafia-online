@@ -1,0 +1,8 @@
+{
+  "name": "omerta-online",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Omertà Mafia Game Master with players on their own phones",
+  "scripts": { "dev": "node dev-server.js" },
+  "engines": { "node": ">=18" }
+}
