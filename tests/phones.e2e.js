@@ -89,8 +89,8 @@ const ok = (c, m) => c ? pass++ : fails.push(m);
     ok(await waitText(ph.Aman, "You're out"), 'dead player told to stay silent');
     ok((await text(ph.Priya)).includes('Your private results'), 'result arrives at day start');
     await hold(ph.Priya, 'results');
-    ok(await waitText(ph.Priya, 'Rahul is NOT suspicious'), 'Police reads private result (Godfather looks innocent)');
-    ok(!(await text(ph.Rahul)).includes('NOT suspicious'), "Rahul's phone never sees Priya's result");
+    ok(await waitText(ph.Priya, 'Thumbs up — Rahul is Mafia'), 'Police reads private result (thumbs up on the Godfather)');
+    ok(!(await text(ph.Rahul)).includes('Thumbs up'), "Rahul's phone never sees Priya's result");
 
     // ---- voting from phones
     await god.evaluate(ids => { H['nom-toggle'](ids.Kabir); H['nom-toggle'](ids.Isha); H['vote-open'](); }, ids);

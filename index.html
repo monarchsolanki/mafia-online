@@ -463,7 +463,7 @@ const KINDS = {
   ignite:     { prio: 6, visits: false, target: 'none',  verb: 'Ignite' },
   factionKill:{ prio: 6, visits: true,  target: 'other', verb: 'Kill' },
   bite:       { prio: 6, visits: true,  target: 'other', verb: 'Bite' },
-  checkSus:   { prio: 7, visits: true,  target: 'other', verb: 'Investigate', info: true },
+  checkSus:   { prio: 7, visits: true,  target: 'other', verb: 'Check', info: true },
   clue:       { prio: 7, visits: true,  target: 'other', verb: 'Investigate', info: true },
   checkRole:  { prio: 7, visits: true,  target: 'other', verb: 'Investigate', info: true },
   checkAlign: { prio: 7, visits: true,  target: 'other', verb: 'Investigate', info: true },
@@ -518,7 +518,7 @@ const LIB = [
   /* ---- TOWN ---- */
   R('villager','Villager','town',{icon:'user',tags:['support'],w:1,short:'No ability. Your vote and your voice are your weapons.',desc:'You have no night ability. Listen, question, and vote out the killers.'}),
   R('doctor','Doctor','town',{icon:'cross',tags:['protective'],w:4,wake:60,clue:'medicine',short:'Heal one player each night.',desc:'Each night, heal one player. They gain Powerful defense tonight and any poison is cured. You may heal yourself once.',abilities:[{id:'heal',kind:'heal'}]}),
-  R('police','Police','town',{icon:'badge',tags:['investigative','information'],w:5,wake:70,clue:'watching',short:'Learn whether a player is suspicious.',desc:'Each night, investigate one player to learn if they are suspicious. The Godfather appears innocent; framed players appear suspicious.',abilities:[{id:'inv',kind:'checkSus'}]}),
+  R('police','Police','town',{icon:'badge',tags:['investigative','information'],w:6,wake:70,clue:'watching',short:'Point at a player: thumbs up if they are Mafia, thumbs down if not.',desc:'Each night, point at one player. The Game Master gives you a thumbs up if they are Mafia, and a thumbs down if they are not. A Framer can make an innocent look guilty, and a Disguiser can hide a Mafia member.',abilities:[{id:'inv',kind:'checkSus'}]}),
   R('investigator','Investigator','town',{icon:'search',tags:['investigative','information'],w:4,wake:71,clue:'paperwork',short:'Get a clue: your target is one of five roles.',desc:'Each night, investigate one player. You learn a short list of roles they could be.',abilities:[{id:'inv',kind:'clue'}]}),
   R('vigilante','Vigilante','town',{icon:'crosshair',tags:['killing'],w:4,wake:65,clue:'weapons',gun:true,short:'Shoot a player at night. 3 bullets.',desc:'From Night 2, you may shoot one player (Basic attack). You have 3 bullets. If you kill a Town member you will die of guilt the next night.',abilities:[{id:'shoot',kind:'kill',attack:1,uses:3,nights:'notFirst',vig:true}]}),
   R('bodyguard','Bodyguard','town',{icon:'shield',tags:['protective','killing'],w:3,wake:61,clue:'shadows',gun:true,short:'Guard a player and die in their place.',desc:'Each night, guard one other player. If they are attacked, you take the hit and strike back at the attacker with a Powerful attack.',abilities:[{id:'guard',kind:'guard'}]}),
@@ -544,7 +544,7 @@ const LIB = [
   R('drunk','Drunk','town',{icon:'bottle',tags:['chaos'],w:0,clue:'common',diff:3,short:'Thinks they hold a power role. They do not.',desc:'You were told you hold a Town power role, but your actions do nothing and your results are random. You still win with the Town.'}),
   /* ---- MAFIA ---- */
   R('mafia','Mafia','mafia',{icon:'knife',tags:['killing'],w:-5,gun:true,knows:'mafia',short:'The rank-and-file killer. Can carry out the family\'s kill.',desc:'You know your fellow Mafia. Each night the family chooses one victim, and you may be the one who carries out the kill. If the Godfather dies and there is no Mafioso, you take over.'}),
-  R('godfather','Godfather','mafia',{icon:'fedora',tags:['killing'],w:-7,unique:true,def:1,sus:false,clue:'shadows',gun:true,knows:'mafia',short:'Leads the Mafia. Appears innocent to the Police.',desc:'You lead the Mafia and have Basic defense. The Police see you as not suspicious. If you die, the Mafioso — or failing that, a Mafia member — takes your place.'}),
+  R('godfather','Godfather','mafia',{icon:'fedora',tags:['killing'],w:-6,unique:true,def:1,clue:'shadows',gun:true,knows:'mafia',short:'Leads the Mafia and survives a normal attack.',desc:'You lead the Mafia and have Basic defense, so a normal attack will not kill you. If you die, the Mafioso — or failing that, a Mafia member — takes your place. (House-rule option: the Godfather can fool the Police.)'}),
   R('mafioso','Mafioso','mafia',{icon:'knife',tags:['killing'],w:-5,clue:'weapons',gun:true,knows:'mafia',short:'The Godfather\'s chosen heir. First to carry out the kill, first in line to lead.',desc:'You are a Mafia member with two privileges: you carry out the kill by default, and if the Godfather dies you are promoted ahead of any plain Mafia.'}),
   R('strongman','Strongman','mafia',{icon:'fist',tags:['killing'],w:-6,clue:'shadows',gun:true,knows:'mafia',diff:2,short:'Twice per game, the Mafia kill becomes unstoppable.',desc:'When you carry out the Mafia kill, you may use a strong kill (twice per game) that pierces heals and jail.',abilities:[{id:'strong',kind:'kill',uses:2,viaFaction:true}]}),
   R('silencer','Silencer','mafia',{icon:'mute',tags:['support','chaos'],w:-6,wake:31,clue:'whispers',knows:'mafia',short:'Your target cannot vote tomorrow.',desc:'Each night, choose a player. They cannot vote during the next day.',abilities:[{id:'silence',kind:'silence'}]}),
@@ -553,8 +553,8 @@ const LIB = [
   R('consort','Mafia Roleblocker','mafia',{icon:'ban',tags:['roleblock','support'],w:-6,wake:30,rbImmune:true,clue:'visitors',knows:'mafia',short:'Blocks one player\'s night ability — usually a Town power role.',desc:'Each night, choose one player. Their night ability fails tonight. You cannot be roleblocked yourself. (Called the Consort in some rule sets.)',abilities:[{id:'block',kind:'roleblock'}]}),
   R('consigliere','Consigliere','mafia',{icon:'scroll',tags:['investigative','information'],w:-7,wake:39,clue:'paperwork',knows:'mafia',short:'Learn a player\'s exact role.',desc:'Each night, learn the exact role of one player.',abilities:[{id:'inv',kind:'checkRole'}]}),
   R('mafiainv','Mafia Investigator','mafia',{icon:'search',tags:['investigative','information'],w:-6,wake:40,clue:'watching',knows:'mafia',short:'Learn which faction a player belongs to.',desc:'Each night, learn whether one player is Town, Mafia, Neutral, Cult or Vampire.',abilities:[{id:'inv',kind:'checkAlign'}]}),
-  R('framer','Framer','mafia',{icon:'frame',tags:['support','chaos'],w:-6,wake:33,clue:'chaos',knows:'mafia',short:'Make an innocent look guilty.',desc:'Each night, frame one player. Tonight they appear suspicious, armed and Mafia to every investigation.',abilities:[{id:'frame',kind:'frame'}]}),
-  R('disguiser','Disguiser','mafia',{icon:'mask',tags:['support','chaos'],w:-6,wake:34,clue:'medicine',knows:'mafia',diff:2,short:'Make a player look like a harmless Villager.',desc:'Each night, disguise one player (often a teammate). Tonight they appear as an innocent Villager to every investigation.',abilities:[{id:'disguise',kind:'disguise'}]}),
+  R('framer','Framer','mafia',{icon:'frame',tags:['support','chaos'],w:-6,wake:33,clue:'chaos',knows:'mafia',short:'Make an innocent look guilty.',desc:'Each night, frame one player. Tonight the Police get a thumbs up on them, and every other check sees them as armed Mafia.',abilities:[{id:'frame',kind:'frame'}]}),
+  R('disguiser','Disguiser','mafia',{icon:'mask',tags:['support','chaos'],w:-6,wake:34,clue:'medicine',knows:'mafia',diff:2,short:'Make a player look like a harmless Villager.',desc:'Each night, disguise one player (often a teammate). Tonight the Police get a thumbs down on them, and every other check sees a harmless Villager.',abilities:[{id:'disguise',kind:'disguise'}]}),
   R('janitor','Janitor','mafia',{icon:'broom',tags:['support','chaos'],w:-6,wake:35,clue:'whispers',knows:'mafia',short:'Hide the role of a player who dies tonight.',desc:'Each night, clean a player. If they die tonight, their role is hidden from everyone and revealed only to you. 3 cleans, spent only when the target dies.',abilities:[{id:'clean',kind:'clean',uses:3}]}),
   R('hypnotist','Hypnotist','mafia',{icon:'spiral',tags:['chaos','support'],w:-6,wake:36,clue:'visitors',knows:'mafia',diff:2,short:'Plant a false night message.',desc:'Each night, send one player a fake message such as "You were roleblocked" or "You were healed".',abilities:[{id:'hyp',kind:'hypnotize'}]}),
   R('ambusher','Ambusher','mafia',{icon:'dagger',tags:['killing'],w:-6,wake:38,clue:'weapons',gun:true,knows:'mafia',diff:2,short:'Lie in wait and kill a visitor.',desc:'Each night, wait outside a house. One non-Mafia visitor is attacked (Basic).',abilities:[{id:'ambush',kind:'ambush'}]}),
@@ -569,12 +569,12 @@ const LIB = [
   R('politician','Politician','neutral',{icon:'podium',tags:['chaos'],w:-1,clue:'paperwork',appearsTown:true,diff:2,short:'Back the winning side of every vote.',desc:'You appear Town. You win if you are alive at the end and you voted for the executed player in at least half of all executions.',winText:'Be alive and on the right side of half the executions.',win:'politician'}),
   R('witch','Witch','neutral',{icon:'cauldron',tags:['chaos'],w:-3,wake:18,clue:'spirits',diff:3,short:'Control a player\'s action.',desc:'Each night, force one player to use their ability on a target you choose. You learn their role. You win if you are alive and the Town does not win.',winText:'Be alive when the Town loses.',win:'witch',abilities:[{id:'control',kind:'control'}]}),
   R('pirate','Pirate','neutral',{icon:'skullbones',tags:['killing','chaos'],w:-3,wake:28,rbImmune:true,clue:'visitors',gun:true,diff:2,short:'Duel a player each night. Win two duels.',desc:'Each night, duel a player (not the same one twice in a row). The Game Master runs a quick rock-paper-scissors. Win and your target is roleblocked and plundered (Powerful attack). Two wins and you win.',winText:'Win two duels.',win:'pirate',abilities:[{id:'duel',kind:'duel'}]}),
-  R('serialkiller','Serial Killer','solo',{icon:'knife',tags:['killing'],w:-6,wake:45,def:1,rbImmune:true,sus:true,clue:'medicine',gun:true,short:'Kill one player every night.',desc:'Each night, attack one player (Basic). You have Basic defense and cannot be roleblocked — anyone who tries is attacked too.',retaliate:1,abilities:[{id:'kill',kind:'kill',attack:1}]}),
-  R('arsonist','Arsonist','solo',{icon:'flame',tags:['killing','chaos'],w:-6,wake:46,def:1,sus:true,clue:'shadows',gun:true,diff:2,short:'Douse players, then burn them all.',desc:'Each night, douse one player in gasoline or ignite everyone doused (Unstoppable). Anyone who visits you is doused. You have Basic defense.',abilities:[{id:'douse',kind:'douse'},{id:'ignite',kind:'ignite'}]}),
-  R('werewolf','Werewolf','solo',{icon:'wolf',tags:['killing'],w:-7,wake:47,def:1,rbImmune:true,sus:true,clue:'chaos',gun:true,diff:2,short:'On full moons, maul a house and every visitor.',desc:'On even nights (full moon), rampage at a house: its owner and every visitor suffer a Powerful attack. Stay home to maul your own visitors. Basic defense; you look innocent on odd nights.',retaliate:2,abilities:[{id:'rampage',kind:'rampage',attack:2,nights:'even'}]}),
-  R('cultleader','Cult Leader','cult',{icon:'eye3',tags:['chaos'],w:-7,unique:true,wake:50,sus:false,clue:'spirits',knows:'cult',diff:3,short:'Recruit players into your Cult.',desc:'Each night, recruit one player into the Cult. Mafia, killers, Vampires, jailed or protected players resist. If you die, your oldest follower takes over.',abilities:[{id:'recruit',kind:'recruit'}]}),
-  R('cultist','Cultist','cult',{icon:'hood',tags:['chaos'],w:-3,sus:false,clue:'common',knows:'cult',short:'A follower of the Cult.',desc:'You have joined the Cult. You know your fellow members. Help the Cult take over the town.'}),
-  R('vampire','Vampire','vampire',{icon:'fang',tags:['killing','chaos'],w:-5,sus:true,clue:'chaos',gun:true,knows:'vampire',diff:3,short:'Bite players to turn them into Vampires.',desc:'Each night the Vampires bite one player. Town and neutral targets become Vampires (up to the cap); others are attacked (Basic).'}),
+  R('serialkiller','Serial Killer','solo',{icon:'knife',tags:['killing'],w:-7,wake:45,def:1,rbImmune:true,clue:'medicine',gun:true,short:'Kill one player every night.',desc:'Each night, attack one player (Basic). You have Basic defense and cannot be roleblocked — anyone who tries is attacked too.',retaliate:1,abilities:[{id:'kill',kind:'kill',attack:1}]}),
+  R('arsonist','Arsonist','solo',{icon:'flame',tags:['killing','chaos'],w:-7,wake:46,def:1,clue:'shadows',gun:true,diff:2,short:'Douse players, then burn them all.',desc:'Each night, douse one player in gasoline or ignite everyone doused (Unstoppable). Anyone who visits you is doused. You have Basic defense.',abilities:[{id:'douse',kind:'douse'},{id:'ignite',kind:'ignite'}]}),
+  R('werewolf','Werewolf','solo',{icon:'wolf',tags:['killing'],w:-8,wake:47,def:1,rbImmune:true,clue:'chaos',gun:true,diff:2,short:'On full moons, maul a house and every visitor.',desc:'On even nights (full moon), rampage at a house: its owner and every visitor suffer a Powerful attack. Stay home to maul your own visitors. You have Basic defense, and the Police give you a thumbs down — you are not Mafia.',retaliate:2,abilities:[{id:'rampage',kind:'rampage',attack:2,nights:'even'}]}),
+  R('cultleader','Cult Leader','cult',{icon:'eye3',tags:['chaos'],w:-7,unique:true,wake:50,clue:'spirits',knows:'cult',diff:3,short:'Recruit players into your Cult.',desc:'Each night, recruit one player into the Cult. Mafia, killers, Vampires, jailed or protected players resist. If you die, your oldest follower takes over.',abilities:[{id:'recruit',kind:'recruit'}]}),
+  R('cultist','Cultist','cult',{icon:'hood',tags:['chaos'],w:-3,clue:'common',knows:'cult',short:'A follower of the Cult.',desc:'You have joined the Cult. You know your fellow members. Help the Cult take over the town.'}),
+  R('vampire','Vampire','vampire',{icon:'fang',tags:['killing','chaos'],w:-6,clue:'chaos',gun:true,knows:'vampire',diff:3,short:'Bite players to turn them into Vampires.',desc:'Each night the Vampires bite one player. Town and neutral targets become Vampires (up to the cap); others are attacked (Basic).'}),
 ];
 LIB.forEach(r => { if (!r.winText) r.winText = WIN_TEXT[r.team] || ''; if (!r.win) r.win = r.team; });
 const LIBMAP = Object.fromEntries(LIB.map(r => [r.id, r]));
@@ -589,7 +589,7 @@ function rolesInClue(s, clue) { return allRoles(s).filter(r => r.clue === clue &
 /* ---------- configuration ---------- */
 const DEFAULT_CONFIG = {
   revealOnDeath: true, showCause: true, selfHeal: 'once', healMode: 'all', doctorNotified: true,
-  godfatherInnocent: true, nkSuspicious: true, mafiaBackup: false, promote: true,
+  godfatherInnocent: false, nkSuspicious: false, cfgv: 2, mafiaBackup: false, promote: true,
   vigTown: 'guilt', vigNight1: false, exeFallback: 'jester', jesterHaunt: true,
   guessShots: 2, guessWrong: 'die', voteThreshold: 'plurality', voteTie: 'none', allowSkip: true, mayorWeight: 3,
   parity: true, showdown: true, bluffDead: true, announceAmnesiac: true, convertCap: 4,
@@ -890,10 +890,11 @@ function appearance(s, p, ctx) {
   const role = getRole(s, p.roleId);
   if (ctx.disguised.has(p.id)) return { sus: false, clue: 'common', align: 'Town', gun: false, roleName: 'Villager' };
   if (ctx.framed.has(p.id)) return { sus: true, clue: 'chaos', align: 'Mafia', gun: true, roleName: role.name };
-  let sus = role.sus;
-  if (p.roleId === 'godfather') sus = !s.config.godfatherInnocent;
-  if (p.team === 'solo') sus = s.config.nkSuspicious && (p.roleId !== 'werewolf' || s.night % 2 === 0);
-  if (p.team === 'mafia' && p.roleId !== 'godfather') sus = true;
+  // Police: thumbs up only for the Mafia (Godfather and Silent Mafia included). Options below are house rules.
+  const explicit = role.custom && typeof role.sus === 'boolean';
+  let sus = explicit ? role.sus : p.team === 'mafia';
+  if (!explicit && p.roleId === 'godfather' && s.config.godfatherInnocent) sus = false;
+  if (!explicit && s.config.nkSuspicious && (p.team === 'solo' || p.team === 'vampire')) sus = p.roleId !== 'werewolf' || s.night % 2 === 0;
   let align = role.appearsTown ? 'Town' : teamLabel(p);
   return { sus, clue: role.clue, align, gun: !!role.gun || (role.abilities || []).some(a => ['kill','rampage','ignite'].includes(a.kind)), roleName: role.name };
 }
@@ -902,7 +903,7 @@ function appearance(s, p, ctx) {
 function resolveNight(s0) {
   const s = clone(s0); const N = s.night; const cfg = s.config;
   const rep = { night: N, deaths: [], saves: [], messages: [], lines: [], publicNotes: [], visits: [], cancelled: [] };
-  const msg = (to, text, tag = 'info') => rep.messages.push({ to, text, tag });
+  const msg = (to, text, tag = 'info', extra) => rep.messages.push(Object.assign({ to, text, tag }, extra || {}));
   const line = t => rep.lines.push(t);
   const P = id => getP(s, id);
   const nm = id => pname(s, id);
@@ -924,7 +925,7 @@ function resolveNight(s0) {
     if (k.target === 'self') a.targets = [p.id];
     if (k.target === 'assigned') a.targets = [p.meta.target];
     if (['other','any','two','dead','deadTown'].includes(k.target) && !a.targets.filter(Boolean).length) continue;
-    acts.push({ key: a.key, actor: p.id, ab, kind: ab.kind, targets: a.targets.slice(), opts: a.opts || {}, live: true, inert: p.roleId === 'drunk' });
+    acts.push({ key: a.key, actor: p.id, ab, kind: ab.kind, targets: a.targets.slice(), orig: a.targets.slice(), opts: a.opts || {}, live: true, inert: p.roleId === 'drunk' });
   }
   const WHY = { roleblocked: 'they were roleblocked', jailed: 'they were in jail', 'carried out the faction action': null };
   const cancel = (act, why) => {
@@ -1153,27 +1154,33 @@ function resolveNight(s0) {
   const rndName = () => { const al = s.players.filter(p => p.alive); return al.length ? pick(al).name : 'nobody'; };
   for (const a of acts.filter(x => x.live && kindOf(x.ab || {}).info)) {
     const t = a.targets[0]; const tp = t ? P(t) : null; const me = a.actor;
+    // the player is told about the one they pointed at; a Transporter or Witch can swap who was really checked
+    const shownId = a.orig && a.orig[0] && P(a.orig[0]) && kindOf(a.ab).target !== 'dead' ? a.orig[0] : t;
+    const shown = { name: shownId ? nm(shownId) : '' }; const det = { about: t, pointed: shownId };
+    const say = text => msg(me, text, 'result', det);
     if (a.inert) {
+      const prevRng = _rng; let h = 2166136261; for (const ch of `${N}|${me}|${t}|${a.kind}`) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } _rng = seeded(h || 7);
       const fakes = {
-        checkSus: () => `${tp.name} is ${_rng() < 0.5 ? 'SUSPICIOUS' : 'NOT suspicious'}.`,
-        clue: () => { const c = pick(Object.keys(CLUE_NAMES)); return `${tp.name} could be: ${rolesInClue(s, c).join(', ')}.`; },
-        checkGun: () => `${tp.name} ${_rng() < 0.5 ? 'carries a weapon' : 'is unarmed'}.`,
-        track: () => `${tp.name} visited ${_rng() < 0.5 ? rndName() : 'nobody'}.`,
-        watch: () => `${_rng() < 0.5 ? rndName() : 'Nobody'} visited ${tp.name}.`,
-        count: () => `${tp.name} received ${rnd(3)} visitor(s).`,
+        checkSus: () => _rng() < 0.5 ? `Thumbs up — ${shown.name} is Mafia.` : `Thumbs down — ${shown.name} is not Mafia.`,
+        clue: () => { const c = pick(Object.keys(CLUE_NAMES)); return `${shown.name} could be: ${rolesInClue(s, c).join(', ')}.`; },
+        checkGun: () => `${shown.name} ${_rng() < 0.5 ? 'carries a weapon' : 'is unarmed'}.`,
+        track: () => `${shown.name} visited ${_rng() < 0.5 ? rndName() : 'nobody'}.`,
+        watch: () => `${_rng() < 0.5 ? rndName() : 'Nobody'} visited ${shown.name}.`,
+        count: () => `${shown.name} received ${rnd(3)} visitor(s).`,
       };
-      msg(me, (fakes[a.kind] || (() => 'You learned nothing useful.'))(), 'result');
+      say((fakes[a.kind] || (() => 'You learned nothing useful.'))());
+      _rng = prevRng;
       continue;
     }
     switch (a.kind) {
-      case 'checkSus': { const ap = appearance(s, tp, ctx); msg(me, `${tp.name} is ${ap.sus ? 'SUSPICIOUS' : 'NOT suspicious'}.`, 'result'); break; }
-      case 'clue': { const ap = appearance(s, tp, ctx); msg(me, `${tp.name} could be: ${rolesInClue(s, ap.clue).join(', ')}.`, 'result'); break; }
-      case 'checkRole': { const ap = appearance(s, tp, ctx); msg(me, `${tp.name} is the ${ap.roleName}.`, 'result'); break; }
-      case 'checkAlign': { const ap = appearance(s, tp, ctx); msg(me, `${tp.name} belongs to the ${ap.align}.`, 'result'); break; }
-      case 'checkGun': { const ap = appearance(s, tp, ctx); msg(me, `${tp.name} ${ap.gun ? 'carries a weapon' : 'is unarmed'}.`, 'result'); break; }
-      case 'track': { const went = [...new Set(visits.filter(v => v.from === t).map(v => nm(v.to)))]; msg(me, went.length ? `${tp.name} visited ${went.join(', ')}.` : `${tp.name} stayed home.`, 'result'); break; }
-      case 'watch': { const who = visitorsOf(t).filter(v => v !== me).map(nm); msg(me, who.length ? `${tp.name} was visited by ${who.join(', ')}.` : `Nobody visited ${tp.name}.`, 'result'); break; }
-      case 'count': { const n = visitorsOf(t).filter(v => v !== me).length; const out = visits.some(v => v.from === t); msg(me, `${tp.name} received ${n} visitor${n === 1 ? '' : 's'} and ${out ? 'went out' : 'stayed home'}.`, 'result'); break; }
+      case 'checkSus': { const ap = appearance(s, tp, ctx); say(ap.sus ? `Thumbs up — ${shown.name} is Mafia.` : `Thumbs down — ${shown.name} is not Mafia.`); break; }
+      case 'clue': { const ap = appearance(s, tp, ctx); say(`${shown.name} could be: ${rolesInClue(s, ap.clue).join(', ')}.`); break; }
+      case 'checkRole': { const ap = appearance(s, tp, ctx); say(`${shown.name} is the ${ap.roleName}.`); break; }
+      case 'checkAlign': { const ap = appearance(s, tp, ctx); say(`${shown.name} belongs to the ${ap.align}.`); break; }
+      case 'checkGun': { const ap = appearance(s, tp, ctx); say(`${shown.name} ${ap.gun ? 'carries a weapon' : 'is unarmed'}.`); break; }
+      case 'track': { const went = [...new Set(visits.filter(v => v.from === t).map(v => nm(v.to)))]; say(went.length ? `${shown.name} visited ${went.join(', ')}.` : `${shown.name} stayed home.`); break; }
+      case 'watch': { const who = visitorsOf(t).filter(v => v !== me).map(nm); say(who.length ? `${shown.name} was visited by ${who.join(', ')}.` : `Nobody visited ${shown.name}.`); break; }
+      case 'count': { const n = visitorsOf(t).filter(v => v !== me).length; const out = visits.some(v => v.from === t); say(`${shown.name} received ${n} visitor${n === 1 ? '' : 's'} and ${out ? 'went out' : 'stayed home'}.`); break; }
       case 'spy': { const mv = [...new Set(visits.filter(v => P(v.from).team === 'mafia' && !isHidden(s, P(v.from))).map(v => nm(v.to)))]; msg(me, mv.length ? `The Mafia visited ${mv.join(', ')}.` : 'The Mafia visited nobody.', 'result'); break; }
       case 'seekMafia': { const yes = tp.team === 'mafia'; msg(me, yes ? `Thumbs up: ${tp.name} is Mafia.` : `No thumbs up for ${tp.name}.`, 'result'); break; }
       case 'medium': { msg(me, `${tp.name} was the ${getRole(s, tp.roleId).name}.`, 'result'); break; }
@@ -1542,6 +1549,19 @@ function endGame(s, w) {
   return s;
 }
 
+/* ---------- live answer preview (what the God signals at night) ---------- */
+// Everything that can change an information result (jail, transport, control, roleblock, frame, disguise)
+// wakes before the information roles, so a dry run with the actions recorded so far gives the real answer.
+function previewResult(s0, act) {
+  const s = clone(s0); setAction(s, act); const prev = _rng; _rng = seeded(97);
+  try {
+    const r = resolveNight(s); const rep = r.reports[s0.night] || { messages: [], cancelled: [] };
+    const blocked = rep.cancelled.find(c => c.actor === act.actor);
+    const res = rep.messages.filter(m => m.to === act.actor && m.tag === 'result');
+    return { messages: res.map(m => m.text), about: res[0] ? res[0].about : null, pointed: res[0] ? res[0].pointed : null, blocked: blocked ? blocked.why : null };
+  } finally { _rng = prev; }
+}
+
 /* ---------- restart ---------- */
 // mode 'same': same players and dealt roles, back to Night 1 · 'reshuffle': same role list, new secret roles · 'setup': same players, roles cleared
 function restartGame(old, mode) {
@@ -1642,7 +1662,7 @@ function makeCustomRole(d) {
   const sideW = { town: 2, mafia: -6.5, solo: -7, neutral: 0 }[team];
   return R(id, String(d.name || 'Custom role').slice(0, 28), team, {
     custom: true, icon: d.icon || 'star', tags: d.tags || [], short: d.short || d.desc || '', desc: d.desc || '', def: Math.max(0, Math.min(3, d.def | 0)), rbImmune: !!d.rbImmune,
-    sus: d.sus === undefined ? team === 'mafia' || team === 'solo' : !!d.sus, clue: d.clue || 'common', gun: d.kind === 'kill', w: typeof d.w === 'number' ? d.w : sideW, wake: 80, abilities,
+    sus: d.sus === undefined ? undefined : !!d.sus, clue: d.clue || 'common', gun: d.kind === 'kill', w: typeof d.w === 'number' ? d.w : sideW, wake: 80, abilities,
     knows: team === 'mafia' ? 'mafia' : null, win: d.win || team, winText: d.winText || WIN_TEXT[team] || (d.win === 'survivor' ? 'Be alive when the game ends.' : ''),
   });
 }
@@ -1665,7 +1685,7 @@ const Engine = {
   startDay, endDay, isSilenced, isBlackmailed, promptChoices, resolvePrompt, mayorReveal, guessStatus, guess, voteWeight, canVote,
   openVote, castVote, tally, confirmVote, skipVote, evaluateWin, computeWinners, afterChange, dismissWin, endGame, factionKey,
   factionName, teamLabel, playerCard, dawnAnnouncement, stats, makeCustomRole, addCustomRole, historyText, describeAbility, effRole,
-  phaseTag, log, isEvil, appearance, isHidden, setupWarnings, stalemate, ackStalemate, restartGame, describeAction,
+  phaseTag, log, isEvil, appearance, isHidden, setupWarnings, stalemate, ackStalemate, restartGame, describeAction, previewResult,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Engine; else root.Engine = Engine;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -1698,6 +1718,7 @@ function boot() {
   else { A.s = E.newGame(); A.ui.view = 'home'; }
   for (const r of A.customLib) if (!A.s.customRoles[r.id]) A.s.customRoles[r.id] = r;
   A.s.setup.disabled = A.prefs.disabled.slice();
+  if ((A.s.config.cfgv || 1) < 2) { A.s.config.godfatherInnocent = false; A.s.config.nkSuspicious = false; A.s.config.cfgv = 2; } // Police: thumbs up only for Mafia
 }
 function save() {
   if (window.Online && Online.room) Online.schedule();
@@ -2259,8 +2280,8 @@ const CFG = [
     ['doctorNotified', 'bool', 'Tell the Doctor when their patient was attacked'],
   ]],
   ['Investigations', [
-    ['godfatherInnocent', 'bool', 'Godfather appears innocent to the Police'],
-    ['nkSuspicious', 'bool', 'Solo killers appear suspicious', 'The Werewolf only on full-moon nights.'],
+    ['godfatherInnocent', 'bool', 'Godfather fools the Police', 'Off: the Police get a thumbs up on the Godfather like any Mafia.'],
+    ['nkSuspicious', 'bool', 'Police also give a thumbs up to killers', 'Serial Killer, Arsonist, Werewolf (full moons only) and Vampires. Off: only the Mafia.'],
   ]],
   ['Killing', [
     ['mafiaBackup', 'bool', 'Backup Mafia carrier', 'If the carrier is blocked or jailed, another member carries out the kill.'],
@@ -2507,12 +2528,7 @@ function stepPanel(st, idx, total) {
       else if (t === 'assigned') { const tg = actor.meta.target; inner += `<p style="margin-top:14px">Their ward is <b>${esc(E.pname(s, tg))}</b>. Shield them tonight?</p>`; can = true; okLabel = `${esc(ab.verb)} ${esc(E.pname(s, tg))}`; }
       else if (t === 'two') { inner += `<div style="margin-top:14px">${targetGrid(actor.id, ab.id, d, 2, k)}</div>`; can = d.targets.length === 2; okLabel = can ? `${esc(ab.verb)} ${d.targets.map(x => esc(E.pname(s, x))).join(' & ')}` : 'Pick two'; }
       else { inner += `<h3 style="margin-top:14px">${t === 'dead' || t === 'deadTown' ? 'Choose a dead player' : 'Choose a target'}</h3><div style="margin-top:8px">${targetGrid(actor.id, ab.id, d)}</div>`; can = !!d.targets[0]; okLabel = can ? `${esc(ab.verb)} ${esc(E.pname(s, d.targets[0]))}` : 'Pick a target'; }
-      if (k === 'seekMafia' && d.targets[0]) {
-        const tp = P(d.targets[0]); const jailed = s.actions.some(x => P(x.actor) && P(x.actor).roleId === 'jailkeeper' && x.targets[0] === actor.id);
-        inner += jailed ? `<div class="msg status" style="margin-top:14px">${esc(actor.name)} is in jail tonight — give no answer.</div>`
-          : tp.team === 'mafia' ? `<div class="panel tight" style="margin-top:14px;border-color:var(--mafia);text-align:center"><div class="display" style="font-size:30px;color:var(--mafia)">Give a thumbs up</div><div class="small ash">${esc(tp.name)} is Mafia.</div></div>`
-          : `<div class="panel tight" style="margin-top:14px;text-align:center"><div class="display" style="font-size:30px">No thumbs up</div><div class="small ash">${esc(tp.name)} is not Mafia.</div></div>`;
-      }
+      if (LIVE_KINDS.includes(k) && d.targets[0]) inner += liveAnswer(actor, ab, d);
       if (k === 'jail') { const ex = actor.uses.execute || 0; inner += `<div class="toggle"><div><div class="t" id="ex-l">Execute the prisoner</div><div class="d">${ex ? ex + ' left · Unstoppable' : 'No executions left'}</div></div><button class="switch" role="switch" ${ex ? '' : 'disabled'} aria-checked="${!!d.opts.execute}" aria-labelledby="ex-l" data-a="draft-opt" data-v="execute"></button></div>`; }
       if (k === 'hypnotize') { inner += `<label class="field" style="margin-top:14px" for="hyp"><span>Message to plant</span></label><select id="hyp" data-c="draft-msg">${E.HYPNO_MSGS.map(m => `<option ${d.opts.msg === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select>`; if (!d.opts.msg) d.opts.msg = E.HYPNO_MSGS[0]; }
       if (k === 'duel') { inner += `<h3 style="margin-top:16px">Who won the duel?</h3><p class="small ash" style="margin:2px 0 8px">Run a quick rock-paper-scissors between the Pirate and the target.</p><div class="seg" role="group" aria-label="Duel result"><button data-a="draft-duel" data-v="1" aria-pressed="${d.opts.won === true}">The Pirate won</button><button data-a="draft-duel" data-v="0" aria-pressed="${d.opts.won === false}">The target won</button></div>`; can = can && typeof d.opts.won === 'boolean'; }
@@ -2526,9 +2542,22 @@ function stepPanel(st, idx, total) {
     <div class="actionbar"><button class="btn primary" data-a="night-confirm" ${can ? '' : 'disabled'}>${icon('check')}<span class="t">${okLabel}</span></button>
       <button class="btn" data-a="night-skip">${st.type === 'faction' ? 'No ' + (st.faction === 'mafia' ? 'kill' : 'bite') : 'No action'}</button></div></div>`;
 }
+const LIVE_KINDS = ['checkSus', 'seekMafia', 'clue', 'checkRole', 'checkAlign', 'checkGun', 'medium'];
+function liveAnswer(actor, ab, d) {
+  const s = A.s; let pv;
+  try { pv = E.previewResult(s, { key: actor.id, actor: actor.id, ab: ab.id, targets: d.targets.slice(), opts: {} }); } catch (e) { return ''; }
+  if (pv.blocked) return `<div class="msg status" style="margin-top:14px">${esc(actor.name)} gets no answer tonight — ${pv.blocked === 'jailed' ? 'they are in jail' : pv.blocked === 'roleblocked' ? 'they were roleblocked' : 'their action is cancelled'}. Wake them anyway, but give no signal.</div>`;
+  const m = pv.messages[0]; if (!m) return '';
+  const moved = pv.about && pv.pointed && pv.about !== pv.pointed ? `<div class="small" style="color:var(--warn);margin-top:6px">${icon('swap', 'sm')} A Transporter or Witch moved this check: the answer is about ${esc(E.pname(s, pv.about))}, but ${esc(actor.name)} will think it is about ${esc(E.pname(s, pv.pointed))}. Signal it anyway.</div>` : '';
+  if (ab.kind === 'checkSus' || ab.kind === 'seekMafia') {
+    const up = /^Thumbs up/.test(m);
+    return `<div class="panel tight" style="margin-top:14px;text-align:center;${up ? 'border-color:var(--mafia)' : ''}"><div class="small ash">Signal now</div><div class="display" style="font-size:30px;${up ? 'color:var(--mafia)' : ''}">${up ? 'Give a thumbs up' : ab.kind === 'checkSus' ? 'Give a thumbs down' : 'No thumbs up'}</div><div class="small ash">${esc(m)}</div>${moved}</div>`;
+  }
+  return `<div class="panel tight" style="margin-top:14px"><div class="small ash">Tell them now (or at dawn)</div><div style="font-weight:650;margin-top:4px">${esc(m)}</div>${moved}</div>`;
+}
 function scriptFor(st, d) {
   const ab = st.abilities.find(a => a.id === d.ab) || st.abilities[0];
-  const map = { heal: 'Who will you protect tonight?', checkSus: 'Who do you want to investigate?', clue: 'Who do you want to investigate?', checkRole: 'Whose role do you want to learn?', checkAlign: 'Whose loyalty do you want to learn?', checkGun: 'Who do you want to inspect?', kill: 'Who do you want to kill?', guard: 'Who will you guard?', roleblock: 'Who will you distract tonight?', jail: 'Who is in your cell tonight?', track: 'Who will you follow?', watch: 'Whose house will you watch?', count: 'Whose house will you watch?', alert: 'Will you go on alert tonight?', vest: 'Will you wear a vest tonight?', medium: 'Which of the dead do you want to contact?', transport: 'Which two players will you swap?', control: 'Who will you control, and whom will they target?', duel: 'Who do you challenge to a duel?', poison: 'Who do you want to poison?', frame: 'Who do you want to frame?', disguise: 'Who do you want to disguise?', clean: 'Whose body will you clean if they die?', douse: 'Who do you douse — or will you ignite?', ignite: 'Ignite everyone doused?', blackmail: 'Who do you want to blackmail?', silence: 'Who do you want to silence?', hypnotize: 'Who do you want to hypnotize?', ambush: 'Whose house will you wait outside?', lovers: 'Which two players fall in love?', shield: 'Will you shield your ward tonight?', rampage: 'Whose house will you rampage at?', recruit: 'Who will you recruit?', remember: 'Whose role do you want to remember?', revive: 'Whom will you raise from the dead?', oracle: 'Who do you want to mark?', seekMafia: 'Point at the player you think is Mafia.', spy: 'Listen in on the Mafia.', psychic: 'Receive your vision.' };
+  const map = { heal: 'Who will you protect tonight?', checkSus: 'Point at the player you think is Mafia.', clue: 'Who do you want to investigate?', checkRole: 'Whose role do you want to learn?', checkAlign: 'Whose loyalty do you want to learn?', checkGun: 'Who do you want to inspect?', kill: 'Who do you want to kill?', guard: 'Who will you guard?', roleblock: 'Who will you distract tonight?', jail: 'Who is in your cell tonight?', track: 'Who will you follow?', watch: 'Whose house will you watch?', count: 'Whose house will you watch?', alert: 'Will you go on alert tonight?', vest: 'Will you wear a vest tonight?', medium: 'Which of the dead do you want to contact?', transport: 'Which two players will you swap?', control: 'Who will you control, and whom will they target?', duel: 'Who do you challenge to a duel?', poison: 'Who do you want to poison?', frame: 'Who do you want to frame?', disguise: 'Who do you want to disguise?', clean: 'Whose body will you clean if they die?', douse: 'Who do you douse — or will you ignite?', ignite: 'Ignite everyone doused?', blackmail: 'Who do you want to blackmail?', silence: 'Who do you want to silence?', hypnotize: 'Who do you want to hypnotize?', ambush: 'Whose house will you wait outside?', lovers: 'Which two players fall in love?', shield: 'Will you shield your ward tonight?', rampage: 'Whose house will you rampage at?', recruit: 'Who will you recruit?', remember: 'Whose role do you want to remember?', revive: 'Whom will you raise from the dead?', oracle: 'Who do you want to mark?', seekMafia: 'Point at the player you think is Mafia.', spy: 'Listen in on the Mafia.', psychic: 'Receive your vision.' };
   return esc(map[ab.kind] || 'What do you do tonight?');
 }
 function actionText(a) {
@@ -2759,7 +2788,7 @@ function viewRoles() {
 }
 function sheetRole(id) {
   const s = A.s; const r = role(id); if (!r) return '';
-  const sus = id === 'godfather' ? !s.config.godfatherInnocent : r.team === 'solo' ? s.config.nkSuspicious : r.sus;
+  const sus = r.custom && typeof r.sus === 'boolean' ? r.sus : id === 'godfather' ? !s.config.godfatherInnocent : (r.team === 'solo' || r.team === 'vampire') ? s.config.nkSuspicious : r.team === 'mafia';
   const off = A.prefs.disabled.includes(id);
   const inUse = s.players.some(p => p.roleId === id) || (s.setup.pool[id] || 0) > 0;
   return `<header><span class="sig" style="color:${teamVar(r.team)}">${icon(r.icon, 'lg')}</span><h2>${esc(r.name)}</h2><button class="iconbtn" data-a="sheet-close" aria-label="Close">${icon('x')}</button></header>
@@ -2768,7 +2797,7 @@ function sheetRole(id) {
     ${(r.abilities || []).length ? `<h3>Abilities</h3><ul class="small" style="padding-left:18px">${r.abilities.map(a => `<li>${esc(E.describeAbility(s, { uses: {} }, a))}${typeof a.uses === 'number' ? ` · ${a.uses} uses` : a.uses === 'guessShots' ? ` · ${s.config.guessShots} shots` : ''}${a.viaFaction ? ' · used through the Mafia kill' : ''}</li>`).join('')}</ul>` : ''}
     <h3>Wins when</h3><p class="small ash" style="margin-top:4px">${esc(r.winText)}</p>
     <h3>Under investigation</h3><div class="small ash" style="margin-top:4px">
-      <div>Police: ${sus ? 'suspicious' : 'not suspicious'}${id === 'werewolf' ? ' (only on full moons)' : ''}</div>
+      <div>Police: ${sus ? 'thumbs up' : 'thumbs down'}${id === 'werewolf' && sus ? ' (only on full moons)' : ''}</div>
       <div>Investigator clue group “${esc(E.CLUE_NAMES[r.clue] || r.clue)}”: ${esc(E.rolesInClue(s, r.clue).join(', '))}</div>
       <div>Gunsmith: ${r.gun ? 'carries a weapon' : 'unarmed'}</div>
       <div>Mafia Investigator: ${r.appearsTown ? 'Town' : teamName(r.team)}</div></div>
@@ -2792,7 +2821,7 @@ function sheetCustom() {
       <label class="field"><span>Attack (if it kills)</span>${sel('cr-attack', [[1, 'Basic'], [2, 'Powerful'], [3, 'Unstoppable']], 1)}</label>
       <label class="field"><span>Night defense</span>${sel('cr-def', [[0, 'None'], [1, 'Basic'], [2, 'Powerful'], [3, 'Invincible']], 0)}</label>
       <label class="field"><span>Roleblock</span>${sel('cr-rb', [[0, 'Can be roleblocked'], [1, 'Immune']], 0)}</label>
-      <label class="field"><span>Police see them as</span>${sel('cr-sus', [['auto', 'Based on team'], [1, 'Suspicious'], [0, 'Not suspicious']], 'auto')}</label>
+      <label class="field"><span>Police answer</span>${sel('cr-sus', [['auto', 'By team — thumbs up only if Mafia'], [1, 'Always thumbs up'], [0, 'Always thumbs down']], 'auto')}</label>
       <label class="field"><span>Investigator clue group</span>${sel('cr-clue', Object.entries(E.CLUE_NAMES), 'common')}</label>
       <label class="field"><span>Nights</span>${sel('cr-nights', [['all', 'Every night'], ['notFirst', 'From Night 2'], ['even', 'Even nights only']], 'all')}</label>
     </div>
