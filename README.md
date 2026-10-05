@@ -23,17 +23,28 @@ Player phones (/play)  ◀──"something changed" ping (no secrets) via Supaba
 
 ```
 omerta-online/
-├── index.html              God's app (the full Game Master console + online room panel)
-├── play.html               Player app (join · role card · results · vote · final reveal)
+├── index.html              God's app — shell HTML only, loads external CSS/JS
+├── play.html               Player app — shell HTML only, loads external CSS/JS
+├── css/
+│   ├── shared.css          Design system shared by both apps
+│   └── player.css          Player-only layout styles
+├── js/
+│   ├── engine.js           Rules engine — pure game logic, no DOM (browser + Node)
+│   ├── app.js              God app — state, views, handlers, online room management
+│   └── player.js           Player phone app — join, role card, vote, reveal
 ├── api/room.js             The one Vercel function: /api/room?action=...
-├── lib/logic.js            Room logic: create, sync, claim, view, vote, reset, close
-├── lib/store.js            Supabase REST storage (production) · in-memory storage (local only)
+├── lib/
+│   ├── logic.js            Room logic: create, sync, claim, view, vote, reset, close
+│   └── store.js            Supabase REST storage (production) · in-memory storage (local)
 ├── supabase/schema.sql     Run once in Supabase: tables, locked down
 ├── vendor/                 supabase.js (live updates) · qrcode.js (join QR) — bundled, no CDN
-├── sw.js · manifest.webmanifest · icons/   Installable app, works offline for the God
-├── dev-server.js           Try everything locally without any accounts
-├── tests/api.test.js       Server tests (no dependencies): node tests/api.test.js
-├── tests/phones.e2e.js     Optional 4-phone browser test
+├── sw.js                   Service worker — offline shell caching
+├── manifest.webmanifest    PWA manifest
+├── icons/                  App icons (192, 512, apple-touch)
+├── dev-server.js           Local dev server — no accounts needed
+├── tests/
+│   ├── api.test.js         Server tests (no dependencies): node tests/api.test.js
+│   └── phones.e2e.js       Optional 4-phone browser test
 ├── package.json · vercel.json · .gitignore
 ```
 

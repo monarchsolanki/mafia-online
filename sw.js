@@ -1,7 +1,7 @@
 // Omertà service worker. Pages and icons work offline; live game data (/api) is never cached.
 // Bump VERSION on every deploy so phones pick up the new build.
-const VERSION = 'omerta-online-v3';
-const SHELL = ['/', '/index.html', '/play', '/play.html', '/manifest.webmanifest', '/vendor/supabase.js', '/vendor/qrcode.js', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png'];
+const VERSION = 'omerta-online-v4';
+const SHELL = ['/', '/index.html', '/play', '/play.html', '/css/shared.css', '/css/player.css', '/js/engine.js', '/js/app.js', '/js/player.js', '/manifest.webmanifest', '/vendor/supabase.js', '/vendor/qrcode.js', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== VERSION).map(x => caches.delete(x)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
