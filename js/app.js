@@ -3,7 +3,7 @@
 const E = window.Engine;
 const $ = sel => document.querySelector(sel);
 const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const KEY = 'omerta.game.v1', PKEY = 'omerta.prefs.v1', PRKEY = 'omerta.presets.v1', CRKEY = 'omerta.customroles.v1';
+const KEY = 'omerta.game.v1', PKEY = 'omerta.prefs.v1', PRKEY = 'omerta.presets.v1', CRKEY = 'omerta.customroles.v1', GKEY = 'omerta.groups.v1';
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
@@ -14,7 +14,7 @@ const LS = {
 const A = {
   s: null, hist: [],
   prefs: Object.assign({ sound: true, disabled: [] }, LS.get(PKEY, {})),
-  presets: LS.get(PRKEY, []), customLib: LS.get(CRKEY, []),
+  presets: LS.get(PRKEY, []), customLib: LS.get(CRKEY, []), groups: LS.get(GKEY, []),
   ui: { view: 'home', setupStep: 0, nightIdx: 0, draft: null, sheet: null, overlay: null, libQuery: '', libFilter: 'all', poolTab: 'town', poolQuery: '',
     tlMode: 'all', pfilter: 'all', voteNominee: null, annFormat: null, annCustom: '', showAssign: false, peek: {}, delivered: {}, timer: null, pin: '', bulk: false, quickN: 10 },
 };
@@ -420,6 +420,7 @@ function viewHome() {
       <p class="lead">Run a whole Mafia night from one phone. Deal roles in secret, record every night action, and let the rules engine resolve kills, heals, roleblocks and win conditions — while you keep the table guessing.</p>
       <div class="row" style="margin-top:6px">
         ${inProgress ? `<button class="btn primary big" data-a="resume">${icon('play')} Resume ${s.phase === 'setup' ? 'setup' : s.phase === 'ended' ? 'results' : (s.phase === 'day' ? 'Day ' + s.day : 'Night ' + s.night)}</button>
+          ${s.phase === 'ended' ? `<button class="btn big" data-a="rematch">${icon('dice')} Rematch</button>` : ''}
           <button class="btn big" data-a="new-game">${icon('plus')} New game</button>`
         : `<button class="btn primary big" data-a="new-game">${icon('plus')} New game</button>`}
         <button class="btn ghost big" data-a="home-roles">${icon('book')} Browse ${E.allRoles(s).length} roles</button>
@@ -485,6 +486,10 @@ function stepPlayers() {
           <button class="btn ghost sm" style="margin-top:10px" data-a="toggle-bulk" aria-expanded="${A.ui.bulk}">${icon('copy', 'sm')} Paste a list of names</button>
           ${A.ui.bulk ? `<label class="field" style="margin-top:10px" for="bulk"><span>One name per line, or separated by commas</span><textarea id="bulk" placeholder="Monarch, Rahul, Priya, Arjun, Aman"></textarea></label><button class="btn sm" style="margin-top:8px" data-a="bulk-add">Add all</button>` : ''}
           <div style="margin-top:12px">${named ? list : `<p class="small muted" style="margin:0">Unnamed seats become Player 1, Player 2… and can be renamed any time.</p>`}</div>
+        </div>
+        <div class="panel">
+          <div class="row between"><h3>${icon('users', 'sm')} Saved groups</h3>${named >= 2 ? `<button class="btn sm" data-a="group-save">${icon('save', 'sm')} Save current</button>` : ''}</div>
+          ${A.groups.length ? `<div style="margin-top:8px">${A.groups.map((g, i) => `<div class="prow" style="grid-template-columns:minmax(0,1fr) auto"><div><b>${esc(g.name)}</b> <span class="muted small">· ${g.players.length} players</span></div><div class="acts"><button class="btn sm" data-a="group-load" data-v="${i}">Load</button><button class="iconbtn" data-a="group-del" data-v="${i}" aria-label="Delete group ${esc(g.name)}">${icon('trash', 'sm')}</button></div></div>`).join('')}</div>` : `<p class="small muted" style="margin:8px 0 0">Save a group of names to reuse next time.</p>`}
         </div>
         ${window.Online ? onlinePanel() : ''}</div>
     </div>
@@ -1003,7 +1008,7 @@ function viewEnded() {
         <div class="panel tight"><div class="small muted">Most valuable player</div><div class="display" style="font-size:26px">${st.mvp ? esc(st.mvp.name) : '—'}</div></div>
         <div class="panel tight"><div class="small muted">Most targeted at night</div><div class="display" style="font-size:26px">${st.mostTargeted ? `${esc(st.mostTargeted.name)} <span class="small muted">· ${plural(st.mostTargeted.n, 'visit')}</span>` : '—'}</div></div>
         <div class="panel tight"><div class="small muted">Most kills</div><div class="display" style="font-size:26px">${st.mostKills ? `${esc(st.mostKills.name)} <span class="small muted">· ${st.mostKills.n}</span>` : '—'}</div></div></div></section>
-    <section class="section row"><button class="btn primary big" data-a="play-again">${icon('refresh')} Play again with these players</button><button class="btn big" data-a="new-game">${icon('plus')} New game</button><button class="btn ghost big" data-a="nav" data-v="timeline">${icon('clock')} Full timeline</button><button class="btn ghost big" data-a="export-log">${icon('download')} Export log</button></section>`;
+    <section class="section row"><button class="btn primary big" data-a="rematch">${icon('dice')} Rematch — reshuffle &amp; go</button><button class="btn big" data-a="play-again">${icon('refresh')} Play again with these players</button><button class="btn big" data-a="new-game">${icon('plus')} New game</button><button class="btn ghost big" data-a="nav" data-v="timeline">${icon('clock')} Full timeline</button><button class="btn ghost big" data-a="export-log">${icon('download')} Export log</button></section>`;
 }
 
 /* Omertà — views part 3 (players, timeline, roles, settings), sheets, handlers, init */
@@ -1309,6 +1314,21 @@ Object.assign(H, {
   },
   'move-player'(v) { const [id, d] = v.split('|'); cmd('Reorder players', s => { const i = s.players.findIndex(p => p.id === id); const j = i + +d; if (j < 0 || j >= s.players.length) return; [s.players[i], s.players[j]] = [s.players[j], s.players[i]]; }); },
   'del-player'(v) { const p = P(v); cmd(`Remove ${p.name}`, s => { s.players = s.players.filter(x => x.id !== v); if ((s.setup.targetN || 0) > Math.max(5, s.players.length) && s.setup.targetN > s.players.length) {} afterPlayersChange(s); }); },
+  'group-save'() {
+    const names = A.s.players.map(p => p.name);
+    if (names.length < 2) { toast('Add at least 2 players first.'); return; }
+    const label = names.slice(0, 3).join(', ') + (names.length > 3 ? '…' : '');
+    A.groups.push({ name: label.slice(0, 40), players: names }); LS.set(GKEY, A.groups); toast('Group saved'); render();
+  },
+  'group-load'(v) {
+    const g = A.groups[+v]; if (!g) return;
+    cmd(`Load group "${g.name}"`, s => {
+      s.players = []; for (const n of g.players) E.addPlayer(s, n);
+      afterPlayersChange(s);
+    });
+    toast(`Loaded "${g.name}"`);
+  },
+  'group-del'(v) { const g = A.groups[+v]; confirmSheet({ title: `Delete "${g.name}"?`, body: 'This removes the saved group from this device.', ok: 'Delete', danger: true, onOk: () => { A.groups.splice(+v, 1); LS.set(GKEY, A.groups); } }); },
   'rec-style'(v) { setupMut(s => { s.setup.style = v; s.setup.seed = 1; s.setup.poolTouched = false; s.setup.dealt = false; autoPool(s); }); },
   'rec-reroll'() { setupMut(s => { s.setup.seed = (s.setup.seed || 1) + 1; if (!s.setup.poolTouched) { autoPool(s); s.setup.dealt = false; } }); Sound.tick(); },
   'rec-use'() { setupMut(s => { const n = A.ui.setupStep === 0 ? effN() : Math.max(5, s.players.length); s.setup.pool = E.recommend(n, s.setup.style, s.setup.seed, s).pool; s.setup.poolTouched = false; s.setup.dealt = false; }); toast('Recommended setup applied'); },
@@ -1471,6 +1491,13 @@ Object.assign(H, {
   'stalemate-ack'() { cmd('Play on through stalemate', s => E.ackStalemate(s)); },
   'end-game'() { confirmSheet({ title: 'End the game now?', body: 'This finishes the game immediately. If no faction has won, it is recorded as a draw. You can still undo.', ok: 'End the game', danger: true, onOk: () => { cmd('End the game', s => E.endGame(s)); Sound.end(); A.ui.view = 'command'; top0(); } }); },
   'play-again'() { if (!cmd('Play again', s => { const n = E.restartGame(s, 'setup'); n.setup.seed = (s.setup.seed || 1) + 1; if (!n.setup.poolTouched) n.setup.pool = E.recommend(n.players.length, n.setup.style, n.setup.seed, n).pool; return n; })) return; resetUi(); Object.assign(A.ui, { setupStep: 1, view: 'command' }); top0(); render(); },
+  rematch() {
+    confirmSheet({ title: 'Rematch — reshuffle and start?', body: 'Same players and role list, new random deal. The game starts immediately at Night 1.', ok: 'Rematch', onOk: () => {
+      if (!cmd('Rematch', s => { E.restartGame(s, 'reshuffle'); E.startGame(s); return s; })) return;
+      resetUi(); Object.assign(A.ui, { view: 'command', nightIdx: 0, draft: null });
+      Sound.night(); A.ui.overlay = { type: 'cine', kind: 'night', n: A.s.night }; top0();
+    } });
+  },
   /* players */
   pfilter(v) { A.ui.pfilter = v; render(); },
   'open-player'(v) { A.ui.sheet = { type: 'player', id: v }; render(); },

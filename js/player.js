@@ -18,6 +18,8 @@ const teamVar = t => ({ town: 'var(--town)', mafia: 'var(--mafia)', cult: 'var(-
 const S = { cfg: null, me: LS.get(PKEY, null), data: null, stage: 'loading', err: '', code: '', seats: null, pending: null, busy: false,
   show: { card: false, results: false }, sb: null, ch: null, pollT: null, hideT: null, toastMsg: '' };
 
+function haptic(pattern) { try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {} }
+
 async function api(action, { method = 'GET', query = {}, body } = {}) {
   const qs = new URLSearchParams(Object.assign({ action }, query)).toString();
   const r = await fetch('/api/room?' + qs, method === 'GET' ? { cache: 'no-store' } : { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ action }, body || {})) });
@@ -47,7 +49,7 @@ async function claim(seat) {
   S.busy = true; render();
   try {
     const j = await api('claim', { method: 'POST', body: { code: S.code, seatId: seat.id } });
-    S.me = { code: S.code, seat: seat.id, token: j.token, name: j.name }; LS.set(PKEY, S.me);
+    S.me = { code: S.code, seat: seat.id, token: j.token, name: j.name }; LS.set(PKEY, S.me); haptic(50);
     S.stage = 'play'; S.pending = null; history.replaceState(null, '', '/play?room=' + S.code);
     await load(); connect(); ping();
   } catch (e) { S.err = e.message; S.pending = null; await findRoom(S.code); }
@@ -58,8 +60,11 @@ async function load(markSeen) {
   try {
     const j = await api('view', { query: Object.assign({ code: S.me.code, seat: S.me.seat, token: S.me.token }, markSeen ? { seen: '1' } : {}) });
     const before = S.data ? JSON.stringify(S.data.view.results || []) : null;
+    const wasAlive = S.data && S.data.view.alive; const prevPhase = S.data && S.data.publicView && S.data.publicView.phase;
     S.data = j; S.err = '';
-    if (before !== null && JSON.stringify(j.view.results || []) !== before && (j.view.results || []).length) { try { navigator.vibrate && navigator.vibrate([60, 60, 60]); } catch (e) {} }
+    if (before !== null && JSON.stringify(j.view.results || []) !== before && (j.view.results || []).length) haptic([60, 60, 60]);
+    if (wasAlive && !j.view.alive) haptic([100, 50, 100, 50, 200]);
+    if (prevPhase && prevPhase !== 'ended' && j.publicView.phase === 'ended') haptic([50, 30, 50, 30, 50]);
     render();
   } catch (e) {
     if (e.status === 404 || e.status === 403) return leave(e.message === 'seat-reset' ? 'The Game Master reset your seat. Join again.' : 'That game has ended or your seat was removed. Join again.');
@@ -84,11 +89,11 @@ function leave(msg) { disconnect(); LS.del(PKEY); S.me = null; S.data = null; S.
 async function vote(target) {
   const v = S.data.publicView.vote; if (!v) return;
   const prev = S.data.myVote; S.data.myVote = target; render();
-  try { await api('vote', { method: 'POST', body: { code: S.me.code, seat: S.me.seat, token: S.me.token, voteKey: v.key, target } }); ping(); toast(target === null ? 'Vote withdrawn' : 'Vote sent'); }
+  try { await api('vote', { method: 'POST', body: { code: S.me.code, seat: S.me.seat, token: S.me.token, voteKey: v.key, target } }); ping(); haptic(target === null ? 20 : [30, 20, 30]); toast(target === null ? 'Vote withdrawn' : 'Vote sent'); }
   catch (e) { S.data.myVote = prev; toast(e.message); load(); }
 }
 function reveal(which) {
-  S.show[which] = true; render();
+  S.show[which] = true; haptic(which === 'card' ? [40, 30, 40] : 30); render();
   clearTimeout(S.hideT); S.hideT = setTimeout(() => { S.show.card = false; S.show.results = false; render(); }, 20000);
   if (which === 'card') { load(true).then(ping); }
   if (which === 'results' && S.data) { const r = S.data.view.results || []; if (r[0]) LS.set(SEENKEY, { code: S.me.code, night: r[0].night }); }
