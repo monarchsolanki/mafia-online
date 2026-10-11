@@ -1069,7 +1069,7 @@ function evaluateWin(s, opt = {}) {
   }
   if (!faction) return { status: 'ongoing', blockers };
   const pending = alive.filter(p => (p.roleId === 'jester' && !p.meta.won) || (p.roleId === 'executioner' && !p.meta.won && p.meta.target && getP(s, p.meta.target) && getP(s, p.meta.target).alive)).map(p => p.id);
-  if (s.config.showdown && pending.length && !opt.ignoreShowdown && faction !== 'draw' && alive.length >= 3) return { status: 'showdown', faction, pending, reason };
+  if (pending.length && !opt.ignoreShowdown && faction !== 'draw' && alive.length >= 3) return { status: 'ongoing', blockers };
   return { status: 'over', faction, reason, winners: computeWinners(s, faction) };
 }
 function computeWinners(s, faction) {
