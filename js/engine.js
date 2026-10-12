@@ -1046,6 +1046,12 @@ function executePlayer(s, target, voters) {
   log(s, 'death', `${p.name} was executed by the town.`);
 }
 function skipVote(s) { const ds = s.dayState; ds.open = false; ds.done = true; ds.result = { type: 'none', reason: 'No vote was held.' }; log(s, 'vote', 'The day ended without a vote.'); afterChange(s); return s; }
+function quickExecute(s, targetId) {
+  const ds = s.dayState; const p = getP(s, targetId); if (!p || !p.alive) return s;
+  ds.open = false; ds.done = true; ds.result = { type: 'execute', target: targetId };
+  log(s, 'vote', `Voting opened (round ${ds.round}) on ${pname(s, targetId)}.`);
+  executePlayer(s, targetId, []); afterChange(s); return s;
+}
 
 /* ---------- win engine ---------- */
 function factionKey(p) { return p.team === 'solo' ? 'solo:' + p.id : p.team; }
@@ -1069,7 +1075,7 @@ function evaluateWin(s, opt = {}) {
   }
   if (!faction) return { status: 'ongoing', blockers };
   const pending = alive.filter(p => (p.roleId === 'jester' && !p.meta.won) || (p.roleId === 'executioner' && !p.meta.won && p.meta.target && getP(s, p.meta.target) && getP(s, p.meta.target).alive)).map(p => p.id);
-  if (s.config.showdown && pending.length && !opt.ignoreShowdown && faction !== 'draw' && alive.length >= 3) return { status: 'showdown', faction, pending, reason };
+  if (pending.length && !opt.ignoreShowdown && faction !== 'draw' && alive.length >= 3) return { status: 'ongoing', blockers };
   return { status: 'over', faction, reason, winners: computeWinners(s, faction) };
 }
 function computeWinners(s, faction) {
@@ -1261,7 +1267,7 @@ const Engine = {
   assignRoles, finalizeAssignment, balanceOf, recommend, seats, nightSteps, nightAbilities, dayAbilities, abilityStatus, legalTargets,
   defaultCarrier, setAction, clearAction, resolveNight, processDeaths, manualKill, manualRevive, manualSetRole, startGame, startNight,
   startDay, endDay, isSilenced, isBlackmailed, promptChoices, resolvePrompt, mayorReveal, guessStatus, guess, voteWeight, canVote,
-  openVote, castVote, tally, confirmVote, skipVote, evaluateWin, computeWinners, afterChange, dismissWin, endGame, factionKey,
+  openVote, castVote, tally, confirmVote, skipVote, quickExecute, evaluateWin, computeWinners, afterChange, dismissWin, endGame, factionKey,
   factionName, teamLabel, playerCard, dawnAnnouncement, stats, makeCustomRole, addCustomRole, historyText, describeAbility, effRole,
   phaseTag, log, isEvil, appearance, isHidden, setupWarnings, stalemate, ackStalemate, restartGame, describeAction, previewResult,
 };

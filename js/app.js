@@ -964,29 +964,10 @@ function dayAbilitiesCard() {
 function voteCard() {
   const s = A.s; const ds = s.dayState; const alive = s.players.filter(p => p.alive);
   if (ds.done) { const r = ds.result || {}; const t = r.target ? E.pname(s, r.target) : '';
-    return `<div class="panel"><h2>The vote</h2><p style="font-size:18px">${r.type === 'execute' ? (r.spared ? `${esc(t)} was voted out — but survived.` : `${esc(t)} was executed${r.random ? ' (random tie-break)' : ''}.`) : esc(r.reason || 'No execution.')}</p></div>`; }
-  if (!ds.open) {
-    const noms = A.ui.nominees || []; const enough = alive.length >= 2;
-    return `<div class="panel"><h2>The vote</h2><p class="ash small">${enough ? 'Select the players on trial, then open the vote.' : 'Fewer than two players are alive — no vote is possible.'}</p>
-      ${enough ? `<div class="row" style="margin:6px 0 10px"><button class="btn sm" data-a="nom-all">Everyone alive</button><button class="btn ghost sm" data-a="nom-clear" ${noms.length ? '' : 'disabled'}>Clear</button></div>
-      <div class="targets">${alive.map(p => `<button class="tgt" data-a="nom-toggle" data-v="${p.id}" aria-pressed="${noms.includes(p.id)}"><span class="dot" style="--c:${p.color}"></span>${esc(p.name)}</button>`).join('')}</div>` : ''}
-      <div class="actionbar"><button class="btn primary" data-a="vote-open" ${noms.length && enough ? '' : 'disabled'}>${icon('hand')}<span class="t">Open vote${noms.length ? ' (' + noms.length + ')' : ''}</span></button><button class="btn ghost" data-a="vote-skip">Skip the vote</button></div></div>`;
-  }
-  const t = E.tally(s); const opts = ds.nominees.concat(s.config.allowSkip ? ['skip'] : []);
-  let cur = A.ui.voteNominee; if (!opts.includes(cur)) cur = A.ui.voteNominee = opts[0];
-  const nm = id => id === 'skip' ? 'No execution' : E.pname(s, id);
-  const max = Math.max(1, ...Object.values(t.totals));
-  const voters = alive.map(p => { const v = ds.votes[p.id]; const can = E.canVote(s, p); const w = E.voteWeight(s, p);
-    return `<button class="tgt" data-a="vote-cast" data-v="${p.id}" aria-pressed="${v === cur}" ${can ? '' : 'disabled'}><span class="dot" style="--c:${p.color}"></span><span>${esc(p.name)}${!can ? '<span class="why">Silenced</span>' : v && v !== cur ? `<span class="why">→ ${esc(nm(v))}</span>` : ''}</span>${w > 1 ? `<span class="tag">${w}×</span>` : ''}</button>`; }).join('');
-  const r = t.result;
-  const preview = r.type === 'execute' ? `${esc(nm(r.target))} would be executed.` : r.type === 'revote' ? `Tie between ${r.tied.map(x => esc(nm(x))).join(' and ')} — a revote would follow.` : r.type === 'random' ? `Tie between ${r.tied.map(x => esc(nm(x))).join(' and ')} — one is picked at random.` : esc(r.reason);
-  return `<div class="panel glow"><div class="row between"><h2>The vote${ds.round > 1 ? ` · round ${ds.round}` : ''}</h2><span class="chip">${t.cast} of ${t.totalW} votes cast</span></div>
-    <p class="small ash">${window.Online && Online.room ? 'Votes from phones fill in by themselves. Tap for anyone voting by hand — a tap overrides their phone until they change it.' : 'Pick a name, then tap everyone voting for them. Tap again to take a vote back.'}</p>
-    <div class="nominee-tabs seg scroll" role="group" aria-label="Voting for">${opts.map(o => `<button data-a="vote-nominee" data-v="${o}" aria-pressed="${o === cur}">${esc(nm(o))} · ${t.totals[o] || 0}</button>`).join('')}</div>
-    <h3 style="margin-top:14px">Votes for ${esc(nm(cur))}</h3><div class="targets" style="margin-top:8px">${voters}</div>
-    <div class="bars" style="margin-top:16px">${opts.map(o => `<div class="bar"><span class="small" style="font-weight:650">${esc(nm(o))}</span><div class="track"><div class="fill ${o === 'skip' ? 'skip' : ''}" style="width:${(t.totals[o] || 0) / max * 100}%"></div></div><b>${t.totals[o] || 0}</b></div>`).join('')}</div>
-    <p style="margin:12px 0 0"><b>${preview}</b></p>
-    <div class="actionbar"><button class="btn primary" data-a="vote-confirm">${icon('gavel')}<span class="t">Lock in the result</span></button><button class="btn ghost" data-a="vote-reset">Clear</button></div></div>`;
+    return `<div class="panel"><h2>Execution</h2><p style="font-size:18px">${r.type === 'execute' ? (r.spared ? `${esc(t)} was voted out — but survived.` : `${esc(t)} was executed.`) : esc(r.reason || 'No execution.')}</p></div>`; }
+  return `<div class="panel"><h2>Execution</h2><p class="ash small">Tap a player to execute, or skip.</p>
+    <div class="targets" style="margin-top:10px">${alive.map(p => `<button class="tgt" data-a="exec-pick" data-v="${p.id}"><span class="dot" style="--c:${p.color}"></span>${esc(p.name)}</button>`).join('')}</div>
+    <div class="actionbar"><button class="btn ghost" data-a="vote-skip">${icon('forward')}<span class="t">Skip execution</span></button></div></div>`;
 }
 
 /* ---------- game over ---------- */
@@ -1463,22 +1444,12 @@ Object.assign(H, {
     A.ui.sheet = null;
     if (cmd(`${E.pname(A.s, gid)} guessed`, s => { res = E.guess(s, gid, t, r); if (res.error) throw new Error(res.error); })) { Sound.kill(); toast(res.correct ? `Correct — ${E.pname(A.s, t)} is shot.` : 'Wrong guess.'); }
   },
-  'nom-all'() { A.ui.nominees = A.s.players.filter(p => p.alive).map(p => p.id); render(); },
-  'nom-clear'() { A.ui.nominees = []; render(); },
-  'nom-toggle'(v) { const n = A.ui.nominees || (A.ui.nominees = []); const i = n.indexOf(v); if (i >= 0) n.splice(i, 1); else n.push(v); render(); },
-  'vote-open'() { const n = (A.ui.nominees || []).slice(); if (!n.length) return; cmd(`Day ${A.s.day}: open the vote`, s => E.openVote(s, n)); A.ui.voteNominee = null; render(); },
-  'vote-skip'() { confirmSheet({ title: 'End the day without a vote?', body: 'Nobody is executed today.', ok: 'Skip the vote', onOk: () => cmd(`Day ${A.s.day}: no vote`, s => E.skipVote(s)) }); },
-  'vote-nominee'(v) { A.ui.voteNominee = v; render(); },
-  'vote-cast'(voter) { const cur = A.ui.voteNominee; if (!cur) return; E.castVote(A.s, voter, cur); save(); Sound.tick(); render(); },
-  'vote-reset'() { A.s.dayState.votes = {}; save(); render(); },
-  'vote-confirm'() {
-    const s = A.s; const t = E.tally(s); const r = t.result; const nm = id => id === 'skip' ? 'no execution' : E.pname(s, id);
-    const go = () => { const before = A.s.deaths.length; cmd(`Day ${A.s.day} vote`, s2 => E.confirmVote(s2)); A.ui.voteNominee = null; if (A.s.deaths.length > before) Sound.kill(); render(); };
-    if (r.type === 'execute') confirmSheet({ title: `Execute ${nm(r.target)}?`, body: `${nm(r.target)} received ${t.totals[r.target]} vote${t.totals[r.target] === 1 ? '' : 's'}. Death abilities trigger immediately. You can undo this.`, ok: `Execute ${nm(r.target)}`, danger: true, onOk: go });
-    else if (r.type === 'revote') confirmSheet({ title: 'Tie — hold a revote?', body: `${r.tied.map(nm).join(' and ')} are tied. Votes are cleared and only they stay on trial.`, ok: 'Start the revote', onOk: go });
-    else if (r.type === 'random') confirmSheet({ title: 'Tie — pick at random?', body: `${r.tied.map(nm).join(' and ')} are tied. One outcome is chosen at random.`, ok: 'Pick at random', danger: true, onOk: go });
-    else confirmSheet({ title: 'No execution', body: r.reason, ok: 'Confirm', onOk: go });
+  'exec-pick'(id) {
+    const name = E.pname(A.s, id);
+    confirmSheet({ title: `Execute ${name}?`, body: 'Death abilities trigger immediately. You can undo this.', ok: `Execute ${name}`, danger: true,
+      onOk: () => { const before = A.s.deaths.length; cmd(`Day ${A.s.day}: execute ${name}`, s => E.quickExecute(s, id)); if (A.s.deaths.length > before) Sound.kill(); render(); } });
   },
+  'vote-skip'() { confirmSheet({ title: 'Skip execution?', body: 'Nobody is executed today.', ok: 'Skip', onOk: () => cmd(`Day ${A.s.day}: no vote`, s => E.skipVote(s)) }); },
   'end-day'() {
     if (!cmd(`End Day ${A.s.day}`, s => E.endDay(s))) return;
     if (A.s.phase === 'night') { Object.assign(A.ui, { nightIdx: 0, draft: null }); Sound.night(); A.ui.overlay = { type: 'cine', kind: 'night', n: A.s.night }; }
