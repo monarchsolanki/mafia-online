@@ -97,10 +97,10 @@ const LIB = [
   R('villager','Villager','town',{icon:'user',tags:['support'],w:1,short:'No ability. Your vote and your voice are your weapons.',desc:'You have no night ability. Listen, question, and vote out the killers.'}),
   R('doctor','Doctor','town',{icon:'cross',tags:['protective'],w:4,wake:60,clue:'medicine',short:'Heal one player each night.',desc:'Each night, heal one player. They gain Powerful defense tonight and any poison is cured. You may heal yourself once.',abilities:[{id:'heal',kind:'heal'}]}),
   R('police','Police','town',{icon:'badge',tags:['investigative','information'],w:6,wake:70,clue:'watching',short:'Point at a player: thumbs up if they are Mafia, thumbs down if not.',desc:'Each night, point at one player. The Game Master gives you a thumbs up if they are Mafia, and a thumbs down if they are not. A Framer can make an innocent look guilty, and a Disguiser can hide a Mafia member.',abilities:[{id:'inv',kind:'checkSus'}]}),
-  R('investigator','Investigator','town',{icon:'search',tags:['investigative','information'],w:4,wake:71,clue:'paperwork',short:'Get a clue: your target is one of five roles.',desc:'Each night, investigate one player. You learn a short list of roles they could be.',abilities:[{id:'inv',kind:'clue'}]}),
+  R('investigator','Investigator','town',{icon:'search',tags:['investigative','information'],w:4,wake:71,clue:'paperwork',short:'Get a clue: a short list of roles your target could be.',desc:'Each night, investigate one player. You learn a short list of roles they could be. Only roles that are in this game ever appear on the list.',abilities:[{id:'inv',kind:'clue'}]}),
   R('vigilante','Vigilante','town',{icon:'crosshair',tags:['killing'],w:4,wake:65,clue:'weapons',gun:true,short:'Shoot a player at night. 3 bullets.',desc:'From Night 2, you may shoot one player (Basic attack). You have 3 bullets. If you kill a Town member you will die of guilt the next night.',abilities:[{id:'shoot',kind:'kill',attack:1,uses:3,nights:'notFirst',vig:true}]}),
   R('bodyguard','Bodyguard','town',{icon:'shield',tags:['protective','killing'],w:3,wake:61,clue:'shadows',gun:true,short:'Guard a player and die in their place.',desc:'Each night, guard one other player. If they are attacked, you take the hit and strike back at the attacker with a Powerful attack.',abilities:[{id:'guard',kind:'guard'}]}),
-  R('mayor','Mayor','town',{icon:'crown',tags:['support'],w:3,unique:true,clue:'paperwork',short:'Reveal yourself to get 3 votes.',desc:'Once during any day, you may reveal yourself. From then on your vote counts as 3, but Doctors can no longer heal you.',abilities:[{id:'reveal',kind:'reveal',uses:1}]}),
+  R('mayor','Mayor','town',{icon:'crown',tags:['support'],w:3,unique:true,clue:'paperwork',short:'Reveal yourself for extra votes (3, later 2).',desc:'Once during any day, you may reveal yourself. From then on your vote counts as 3 votes while more than 7 players are alive, then 2 votes, but Doctors can no longer heal you.',abilities:[{id:'reveal',kind:'reveal',uses:1}]}),
   R('jailkeeper','Jailkeeper','town',{icon:'lock',tags:['protective','roleblock','killing'],w:5,unique:true,wake:10,rbImmune:true,clue:'shadows',gun:true,short:'Jail a player: they are blocked and protected.',desc:'Each night, jail one player. Their action is cancelled and they gain Powerful defense. Twice per game you may execute your prisoner instead (Unstoppable). Executing a Town member costs you your remaining executions. You cannot be roleblocked — your jail happens first.',abilities:[{id:'jail',kind:'jail',executes:2}]}),
   R('tracker','Tracker','town',{icon:'footprints',tags:['investigative','information'],w:3,wake:73,clue:'paperwork',short:'See who your target visited.',desc:'Each night, follow one player and learn whom they visited.',abilities:[{id:'track',kind:'track'}]}),
   R('lookout','Lookout','town',{icon:'eye',tags:['investigative','information'],w:3,wake:74,clue:'watching',short:'See who visited your target.',desc:'Each night, watch one house and learn the names of everyone who visited it.',abilities:[{id:'watch',kind:'watch'}]}),
@@ -163,13 +163,34 @@ function allRoles(s) { return LIB.concat(Object.values((s && s.customRoles) || {
 function abilityDef(s, roleId, abId) { const r = getRole(s, roleId); return r && r.abilities.find(a => a.id === abId); }
 function kindOf(ab) { return KINDS[ab.kind] || {}; }
 function rolesInClue(s, clue) { return allRoles(s).filter(r => r.clue === clue && r.id !== 'cultist').map(r => r.name); }
+// Every role that exists in this game right now: dealt, converted into, or started as.
+function rolesInGame(s) {
+  const ids = new Set(); for (const p of s.players) if (p.roleId) ids.add(p.roleId);
+  for (const r of s.initialRoles || []) ids.add(r.roleId);
+  return ids;
+}
+function hashSeed(str) { let h = 2166136261; for (const ch of String(str)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return h || 7; }
+// What an Investigator is told: the roles of the target's clue group that are in this game. A group with fewer than three of them is topped up
+// with other roles from this game, so a lone match does not give the answer away. Same inputs always give the same list (preview = real result).
+const MIN_CLUE_ROLES = 3;
+function clueRoles(s, clue, key) {
+  const inGame = rolesInGame(s);
+  const lib = inGame.size ? allRoles(s).filter(r => inGame.has(r.id)) : allRoles(s).filter(r => r.id !== 'cultist');
+  let list = lib.filter(r => r.clue === clue);
+  if (list.length < MIN_CLUE_ROLES) {
+    const r = seeded(hashSeed(key)); const rest = lib.filter(x => x.clue !== clue);
+    for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+    list = list.concat(rest.slice(0, MIN_CLUE_ROLES - list.length));
+  }
+  return list.map(x => ({ id: x.id, name: x.name })).sort((a, b) => a.name.localeCompare(b.name));
+}
 
 /* ---------- configuration ---------- */
 const DEFAULT_CONFIG = {
   revealOnDeath: true, showCause: true, selfHeal: 'once', healMode: 'all', doctorNotified: true,
-  godfatherInnocent: false, nkSuspicious: false, cfgv: 2, mafiaBackup: false, promote: true,
+  godfatherInnocent: false, nkSuspicious: false, cfgv: 3, mafiaBackup: false, promote: true,
   vigTown: 'guilt', vigNight1: false, exeFallback: 'jester', jesterHaunt: true,
-  guessShots: 2, guessWrong: 'die', voteThreshold: 'plurality', voteTie: 'none', allowSkip: true, mayorWeight: 3,
+  guessShots: 2, guessWrong: 'die', voteThreshold: 'plurality', voteTie: 'none', allowSkip: true, mayorWeight: 'auto', mayorOnce: false,
   parity: true, showdown: true, bluffDead: true, announceAmnesiac: true, convertCap: 4,
   dayTimer: 5, nightTimer: 0, godPin: '', stalemateCycles: 3,
 };
@@ -738,9 +759,15 @@ function resolveNight(s0) {
     const say = text => msg(me, text, 'result', det);
     if (a.inert) {
       const prevRng = _rng; let h = 2166136261; for (const ch of `${N}|${me}|${t}|${a.kind}`) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } _rng = seeded(h || 7);
+      if (a.kind === 'clue') {
+        // a made-up clue must look real: take the clue group of a role that is actually in this game
+        const ids = [...rolesInGame(s)]; const fakeRole = ids.length ? getRole(s, pick(ids)) : null;
+        const list = clueRoles(s, fakeRole ? fakeRole.clue : 'common', `${N}|${me}|${t}|fake`);
+        msg(me, `${shown.name} could be: ${list.map(r => r.name).join(', ')}.`, 'result', Object.assign({}, det, { roles: list, subject: shown.name }));
+        _rng = prevRng; continue;
+      }
       const fakes = {
         checkSus: () => _rng() < 0.5 ? `Thumbs up — ${shown.name} is Mafia.` : `Thumbs down — ${shown.name} is not Mafia.`,
-        clue: () => { const c = pick(Object.keys(CLUE_NAMES)); return `${shown.name} could be: ${rolesInClue(s, c).join(', ')}.`; },
         checkGun: () => `${shown.name} ${_rng() < 0.5 ? 'carries a weapon' : 'is unarmed'}.`,
         track: () => `${shown.name} visited ${_rng() < 0.5 ? rndName() : 'nobody'}.`,
         watch: () => `${_rng() < 0.5 ? rndName() : 'Nobody'} visited ${shown.name}.`,
@@ -752,7 +779,7 @@ function resolveNight(s0) {
     }
     switch (a.kind) {
       case 'checkSus': { const ap = appearance(s, tp, ctx); say(ap.sus ? `Thumbs up — ${shown.name} is Mafia.` : `Thumbs down — ${shown.name} is not Mafia.`); break; }
-      case 'clue': { const ap = appearance(s, tp, ctx); say(`${shown.name} could be: ${rolesInClue(s, ap.clue).join(', ')}.`); break; }
+      case 'clue': { const ap = appearance(s, tp, ctx); const list = clueRoles(s, ap.clue, `${N}|${me}|${t}`); msg(me, `${shown.name} could be: ${list.map(r => r.name).join(', ')}.`, 'result', Object.assign({}, det, { roles: list, subject: shown.name })); break; }
       case 'checkRole': { const ap = appearance(s, tp, ctx); say(`${shown.name} is the ${ap.roleName}.`); break; }
       case 'checkAlign': { const ap = appearance(s, tp, ctx); say(`${shown.name} belongs to the ${ap.align}.`); break; }
       case 'checkGun': { const ap = appearance(s, tp, ctx); say(`${shown.name} ${ap.gun ? 'carries a weapon' : 'is unarmed'}.`); break; }
@@ -953,7 +980,7 @@ function mayorReveal(s, id) {
   const p = getP(s, id); if (!p || !p.alive || p.roleId !== 'mayor' || p.fx.revealed) return s;
   p.fx.revealed = true; p.uses.reveal = 0;
   s.publicNotes.push({ ph: phaseTag(s), text: `${p.name} has revealed themselves as the Mayor!` });
-  log(s, 'public', `${p.name} revealed as the Mayor. Their vote now counts ${s.config.mayorWeight}.`);
+  log(s, 'public', `${p.name} revealed as the Mayor. Their vote now counts as ${mayorRuleText(s)}.`);
   return s;
 }
 function guessStatus(s, p) {
@@ -980,7 +1007,22 @@ function guess(s, actorId, targetId, roleId) {
 }
 
 /* ---------- voting ---------- */
-function voteWeight(s, p) { return p.roleId === 'mayor' && p.fx.revealed ? s.config.mayorWeight : 1; }
+// A revealed Mayor's vote counts 3 while more than 7 players are alive and 2 once 7 or fewer remain (or a fixed number if the rules say so).
+const MAYOR_BIG_TABLE = 7;
+function mayorFixed(s) { const n = Math.floor(Number(s.config.mayorWeight)); return s.config.mayorWeight !== 'auto' && n >= 1 ? n : 0; }
+function mayorMultiplier(s) { return mayorFixed(s) || (s.players.filter(p => p.alive).length > MAYOR_BIG_TABLE ? 3 : 2); }
+function mayorRuleText(s) {
+  const f = mayorFixed(s); const base = f ? `${f} vote${f === 1 ? '' : 's'}` : `3 votes while more than ${MAYOR_BIG_TABLE} players are alive, then 2 votes`;
+  return base + (s.config.mayorOnce ? ' (one time only)' : '');
+}
+function mayorBonusLeft(s, p) { return p.roleId === 'mayor' && !!p.fx.revealed && !(s.config.mayorOnce && p.fx.mayorSpent); }
+function voteWeight(s, p) { return mayorBonusLeft(s, p) ? mayorMultiplier(s) : 1; }
+// The one-time bonus is used up by the first vote the revealed Mayor takes part in. ids limits it to those who actually voted.
+function spendMayorBonus(s, ids) { for (const p of s.players) if (p.roleId === 'mayor' && p.fx.revealed && canVote(s, p) && (!ids || ids.includes(p.id))) p.fx.mayorSpent = true; }
+function mayorBonusSet(s, id, used) {
+  const p = getP(s, id); if (!p || p.roleId !== 'mayor') return s;
+  p.fx.mayorSpent = !!used; log(s, 'override', `Game Master marked ${p.name}'s one-time Mayor vote as ${used ? 'used' : 'available'}.`); return s;
+}
 function canVote(s, p) { return p.alive && !isSilenced(s, p); }
 function openVote(s, nominees) {
   const ds = s.dayState; ds.nominees = nominees.filter(id => getP(s, id) && getP(s, id).alive); ds.votes = {}; ds.open = true;
@@ -1015,6 +1057,7 @@ function tally(s) {
 function confirmVote(s) {
   const ds = s.dayState; const t = tally(s); let res = t.result;
   s.votes.push({ day: s.day, round: ds.round, votes: clone(ds.votes), totals: t.totals, result: res });
+  spendMayorBonus(s, Object.keys(ds.votes));
   if (res.type === 'revote') {
     ds.round++; ds.nominees = res.tied.filter(x => x !== 'skip'); ds.votes = {};
     log(s, 'vote', `Tie between ${res.tied.map(x => x === 'skip' ? 'no execution' : pname(s, x)).join(' and ')} — revote.`);
@@ -1046,11 +1089,21 @@ function executePlayer(s, target, voters) {
   log(s, 'death', `${p.name} was executed by the town.`);
 }
 function skipVote(s) { const ds = s.dayState; ds.open = false; ds.done = true; ds.result = { type: 'none', reason: 'No vote was held.' }; log(s, 'vote', 'The day ended without a vote.'); afterChange(s); return s; }
+// Closes an open phone vote without a result, so the Game Master can name someone directly or skip.
+function cancelVote(s) {
+  const ds = s.dayState; if (!ds || !ds.open) return s;
+  ds.open = false; ds.votes = {}; ds.nominees = [];
+  log(s, 'vote', 'Voting on phones was closed without a result.'); return s;
+}
+// The Game Master names the player the town chose; no ballots needed. If phones were voting, their votes still count as the voters.
 function quickExecute(s, targetId) {
-  const ds = s.dayState; const p = getP(s, targetId); if (!p || !p.alive) return s;
+  const ds = s.dayState; const p = getP(s, targetId); if (!ds || !p || !p.alive) return s;
+  const votes = ds.votes || {}; const voters = Object.keys(votes).filter(v => votes[v] === targetId);
+  s.votes.push({ day: s.day, round: ds.round, votes: clone(votes), totals: {}, result: { type: 'execute', target: targetId } });
+  spendMayorBonus(s, ds.open ? Object.keys(votes) : null);
   ds.open = false; ds.done = true; ds.result = { type: 'execute', target: targetId };
-  log(s, 'vote', `Voting opened (round ${ds.round}) on ${pname(s, targetId)}.`);
-  executePlayer(s, targetId, []); afterChange(s); return s;
+  log(s, 'vote', `The town chose to execute ${pname(s, targetId)}.`);
+  executePlayer(s, targetId, voters); afterChange(s); return s;
 }
 
 /* ---------- win engine ---------- */
@@ -1142,7 +1195,7 @@ function previewResult(s0, act) {
     const r = resolveNight(s); const rep = r.reports[s0.night] || { messages: [], cancelled: [] };
     const blocked = rep.cancelled.find(c => c.actor === act.actor);
     const res = rep.messages.filter(m => m.to === act.actor && m.tag === 'result');
-    return { messages: res.map(m => m.text), about: res[0] ? res[0].about : null, pointed: res[0] ? res[0].pointed : null, blocked: blocked ? blocked.why : null };
+    return { messages: res.map(m => m.text), about: res[0] ? res[0].about : null, pointed: res[0] ? res[0].pointed : null, roles: res[0] && res[0].roles ? res[0].roles : null, subject: res[0] && res[0].subject ? res[0].subject : null, blocked: blocked ? blocked.why : null };
   } finally { _rng = prev; }
 }
 
@@ -1186,7 +1239,8 @@ function playerCard(s, pid) {
   const fake = p.roleId === 'drunk' ? getRole(s, p.meta.fake) : null;
   const r = fake || getRole(s, p.roleId);
   const team = fake ? 'town' : p.team;
-  const card = { name: p.name, color: p.color, roleName: r.name, icon: r.icon, team, teamName: TEAM_INFO[team] ? TEAM_INFO[team].name : 'Neutral', short: r.short, desc: r.desc, winText: r.winText,
+  const desc = r.id === 'mayor' ? `Once during any day, you may reveal yourself. From then on your vote counts as ${mayorRuleText(s)}, but Doctors can no longer heal you.` : r.desc;
+  const card = { name: p.name, color: p.color, roleName: r.name, icon: r.icon, team, teamName: TEAM_INFO[team] ? TEAM_INFO[team].name : 'Neutral', short: r.short, desc, winText: r.winText,
     abilities: (r.abilities || []).filter(a => !a.viaFaction || true).map(a => describeAbility(s, fake ? { uses: initUses(s, r) } : p, a)), teammates: [], target: null, lover: null };
   const knows = r.hiddenMember ? null : r.knows || (['mafia', 'cult', 'vampire'].includes(team) ? team : null);
   if (!fake && knows) {
@@ -1263,11 +1317,12 @@ function historyText(s) {
 
 const Engine = {
   KINDS, CUSTOM_KINDS, TEAM_INFO, CLUE_NAMES, LIB, LIBMAP, DEFAULT_CONFIG, HYPNO_MSGS, STYLES, STYLE_NAMES, COLORS,
-  clone, uid, shuffle, seeded, setRng, getRole, allRoles, kindOf, rolesInClue, newGame, addPlayer, getP, pname, setRole, poolList,
+  clone, uid, shuffle, seeded, setRng, getRole, allRoles, kindOf, rolesInClue, rolesInGame, clueRoles, newGame, addPlayer, getP, pname, setRole, poolList,
   assignRoles, finalizeAssignment, balanceOf, recommend, seats, nightSteps, nightAbilities, dayAbilities, abilityStatus, legalTargets,
   defaultCarrier, setAction, clearAction, resolveNight, processDeaths, manualKill, manualRevive, manualSetRole, startGame, startNight,
   startDay, endDay, isSilenced, isBlackmailed, promptChoices, resolvePrompt, mayorReveal, guessStatus, guess, voteWeight, canVote,
-  openVote, castVote, tally, confirmVote, skipVote, quickExecute, evaluateWin, computeWinners, afterChange, dismissWin, endGame, factionKey,
+  mayorMultiplier, mayorRuleText, mayorBonusLeft, mayorBonusSet,
+  openVote, castVote, tally, confirmVote, skipVote, cancelVote, quickExecute, evaluateWin, computeWinners, afterChange, dismissWin, endGame, factionKey,
   factionName, teamLabel, playerCard, dawnAnnouncement, stats, makeCustomRole, addCustomRole, historyText, describeAbility, effRole,
   phaseTag, log, isEvil, appearance, isHidden, setupWarnings, stalemate, ackStalemate, restartGame, describeAction, previewResult,
 };

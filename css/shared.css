@@ -252,12 +252,14 @@ label.field>span{display:block;font-size:14px;font-weight:600;color:var(--ash);m
 .sheet .grab{width:44px;height:5px;border-radius:3px;background:var(--line-2);margin:-6px auto 14px}
 .sheet header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 .sheet header h2{flex:1}
-.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:90;padding:12px 18px;border-radius:14px;background:#f2ead9;color:#17121c;font-weight:650;box-shadow:var(--shadow);max-width:min(92vw,520px);text-align:center;animation:rise .2s ease-out}
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:90;padding:12px 18px;border-radius:14px;background:#f2ead9;color:#17121c;font-weight:650;box-shadow:var(--shadow);width:max-content;max-width:min(92vw,520px);text-align:center;animation:toast-in .2s ease-out}
 
 /* ---------- full-screen overlays (reveal, private, cinematic) ---------- */
 .full{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;text-align:center;padding:calc(28px + env(safe-area-inset-top,0px)) 22px calc(28px + env(safe-area-inset-bottom,0px));overflow:auto;
   background:radial-gradient(900px 600px at 50% 0%,rgba(110,95,255,.16),transparent 60%),radial-gradient(700px 500px at 50% 110%,rgba(200,40,60,.14),transparent 60%),var(--ink)}
 .full.cine{animation:fade .4s ease-out}
+.full{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.btn.skipall{margin-top:8px;width:100%;max-width:340px;min-height:52px;justify-content:center;background:var(--surface-2);border:1px solid var(--line-2);color:var(--bone)}
 .full .who{font-size:16px;color:var(--ash);font-weight:600}
 .full .bigname{font-family:var(--font-display);font-size:clamp(40px,11vw,84px);font-weight:600;line-height:1;margin:10px 0 18px;overflow-wrap:anywhere}
 .hold{position:relative;min-width:240px;min-height:64px;padding:0 28px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--bone);font-weight:700;font-size:18px;overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none}
@@ -298,6 +300,7 @@ table.dt th{color:var(--dim);font-weight:600;font-size:13px}
 
 @keyframes fade{from{opacity:0}to{opacity:1}}
 @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes toast-in{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
 @keyframes flip{from{opacity:0;transform:perspective(900px) rotateY(-24deg) translateY(10px)}to{opacity:1;transform:none}}
 @keyframes breathe{0%,100%{box-shadow:0 0 60px 6px rgba(150,140,255,.30),inset -6px -8px 18px rgba(40,30,90,.45)}50%{box-shadow:0 0 90px 16px rgba(150,140,255,.45),inset -6px -8px 18px rgba(40,30,90,.45)}}
 @keyframes enter{from{opacity:0;letter-spacing:.2em;transform:scale(.92)}to{opacity:1;letter-spacing:-.02em;transform:none}}

@@ -11,6 +11,7 @@ const IC = {
   hand: '<path d="M9 11V5a1.5 1.5 0 0 1 3 0v5M12 9V4a1.5 1.5 0 0 1 3 0v6M15 9.5V6a1.5 1.5 0 0 1 3 0v8c0 4-3 7-6.5 7-2.5 0-4-1-5.5-3l-3-4.5a1.5 1.5 0 0 1 2.4-1.8L9 14"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7"/>', user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', mute: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l4 6M21 9l-4 6"/>',
   flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>', alert: '<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>', star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+  back: '<path d="M15 6l-6 6 6 6"/>',
 };
 const icon = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || IC.star}</svg>`;
 const teamVar = t => ({ town: 'var(--town)', mafia: 'var(--mafia)', cult: 'var(--cult)', vampire: 'var(--vamp)', solo: 'var(--solo)', neutral: 'var(--neutral)' }[t] || 'var(--neutral)');
@@ -19,6 +20,7 @@ const S = { cfg: null, me: LS.get(PKEY, null), data: null, stage: 'loading', err
   show: { card: false, results: false }, sb: null, ch: null, pollT: null, hideT: null, toastMsg: '' };
 
 function haptic(pattern) { try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {} }
+let appUrl = location.href; // the address the Back handling keeps restoring
 
 async function api(action, { method = 'GET', query = {}, body } = {}) {
   const qs = new URLSearchParams(Object.assign({ action }, query)).toString();
@@ -29,7 +31,7 @@ async function api(action, { method = 'GET', query = {}, body } = {}) {
 }
 let toastT;
 function toast(m) { S.toastMsg = m; renderToast(); clearTimeout(toastT); toastT = setTimeout(() => { S.toastMsg = ''; renderToast(); }, 2800); }
-function renderToast() { $('#toast').innerHTML = S.toastMsg ? `<div class="toast" role="status">${esc(S.toastMsg)}</div>` : ''; }
+function renderToast() { const el = $('#toast'); const m = S.toastMsg || ''; if (el.dataset.m === m) return; el.dataset.m = m; el.innerHTML = m ? `<div class="toast" role="status">${esc(m)}</div>` : ''; }
 
 /* ---------- flow ---------- */
 async function init() {
@@ -50,7 +52,7 @@ async function claim(seat) {
   try {
     const j = await api('claim', { method: 'POST', body: { code: S.code, seatId: seat.id } });
     S.me = { code: S.code, seat: seat.id, token: j.token, name: j.name }; LS.set(PKEY, S.me); haptic(50);
-    S.stage = 'play'; S.pending = null; history.replaceState(null, '', '/play?room=' + S.code);
+    S.stage = 'play'; S.pending = null; history.replaceState(null, '', '/play?room=' + S.code); appUrl = location.href;
     await load(); connect(); ping();
   } catch (e) { S.err = e.message; S.pending = null; await findRoom(S.code); }
   S.busy = false; render();
@@ -101,7 +103,7 @@ function reveal(which) {
 
 /* ---------- screens ---------- */
 function header() {
-  return `<header class="top"><span class="brand">Omertà</span>${S.me ? `<span class="phasechip" style="max-width:62vw;overflow:hidden;text-overflow:ellipsis">${esc(S.me.name)} · ${esc(S.me.code)}</span>` : ''}</header>`;
+  return `<header class="top">${S.stage === 'pick' ? `<button class="iconbtn" data-a="back" aria-label="Back" title="Back">${icon('back')}</button>` : ''}<span class="brand">Omertà</span>${S.me ? `<span class="phasechip" style="max-width:62vw;overflow:hidden;text-overflow:ellipsis">${esc(S.me.name)} · ${esc(S.me.code)}</span>` : ''}</header>`;
 }
 function joinScreen() {
   return `<section class="pl-hero">${icon('user', 'xl')}<h1 class="display">Join the game</h1><p class="ash">Type the room code the Game Master shows you.</p></section>
@@ -214,7 +216,25 @@ function bindHolds() {
     el.addEventListener('contextmenu', e => e.preventDefault());
   });
 }
+// Back steps out of the name list or the "are you …?" question. Once in the game, an accidental swipe must not drop the player out of it.
+let backArmed = 0;
+function goBack() {
+  if (S.stage === 'pick') { if (S.pending) S.pending = null; else { S.stage = 'join'; S.seats = null; S.err = ''; } render(); return 'handled'; }
+  if (S.stage === 'play') {
+    const now = Date.now(); if (now - backArmed < 2500) { backArmed = 0; return 'exit'; }
+    backArmed = now; toast('Press Back again to leave this page. Your seat is kept.'); return 'handled';
+  }
+  return 'exit';
+}
+function initBackNav() {
+  try { history.replaceState({ omerta: 'root' }, ''); history.pushState({ omerta: 'app' }, ''); } catch (e) { return; }
+  window.addEventListener('popstate', () => {
+    if (goBack() === 'exit') { try { history.back(); } catch (e) {} return; }
+    try { history.pushState({ omerta: 'app' }, '', appUrl); } catch (e) {}
+  });
+}
 const ACT = {
+  back() { goBack(); },
   find() { const c = ($('#code').value || '').toUpperCase().replace(/[^A-Z]/g, ''); if (c.length !== 5) { S.err = 'Room codes have 5 letters.'; render(); return; } S.code = c; findRoom(c); },
   pick(id) { S.pending = (S.seats || []).find(s => s.id === id) || null; S.err = ''; render(); },
   unpick() { S.pending = null; render(); },
@@ -229,5 +249,5 @@ const ACT = {
 document.addEventListener('click', e => { const el = e.target.closest('[data-a]'); if (!el || el.disabled) return; e.preventDefault(); const f = ACT[el.dataset.a]; if (f) f(el.dataset.v); });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'code') ACT.find(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.me) load(); });
-init();
+init(); initBackNav();
 

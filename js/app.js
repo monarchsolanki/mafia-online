@@ -25,6 +25,7 @@ function boot() {
   for (const r of A.customLib) if (!A.s.customRoles[r.id]) A.s.customRoles[r.id] = r;
   A.s.setup.disabled = A.prefs.disabled.slice();
   if ((A.s.config.cfgv || 1) < 2) { A.s.config.godfatherInnocent = false; A.s.config.nkSuspicious = false; A.s.config.cfgv = 2; } // Police: thumbs up only for Mafia
+  if ((A.s.config.cfgv || 1) < 3) { A.s.config.mayorWeight = 'auto'; A.s.config.mayorOnce = false; A.s.config.cfgv = 3; } // Mayor: 3 votes above 7 alive, then 2
 }
 function save() {
   if (window.Online && Online.room) Online.schedule();
@@ -48,7 +49,7 @@ function undo() {
 }
 let toastT = null;
 function toast(msg) { A.ui.toast = msg; renderToast(); clearTimeout(toastT); toastT = setTimeout(() => { A.ui.toast = null; renderToast(); }, 2600); }
-function renderToast() { const el = $('#toast'); el.innerHTML = A.ui.toast ? `<div class="toast" role="status">${esc(A.ui.toast)}</div>` : ''; }
+function renderToast() { const el = $('#toast'); const m = A.ui.toast || ''; if (el.dataset.m === m) return; el.dataset.m = m; el.innerHTML = m ? `<div class="toast" role="status">${esc(m)}</div>` : ''; }
 
 /* ---------- sound (Web Audio, synthesized, no external files) ---------- */
 const Sound = {
@@ -159,9 +160,10 @@ const IC = {
   phone: '<rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   restart: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  back: '<path d="M15 6l-6 6 6 6"/>', forward: '<path d="M5 5l9 7-9 7zM18 5v14"/>',
 };
 const icon = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || IC.star}</svg>`;
-const ROLE_ICONS = Object.keys(IC).filter(k => !['undo','command','clock','book','settings','plus','minus','trash','edit','up','down','check','x','play','pause','download','copy','refresh','chev','info','alert','save','flag','bug','hourglass','phone','eyeoff','volume','users','menu','restart'].includes(k));
+const ROLE_ICONS = Object.keys(IC).filter(k => !['undo','command','clock','book','settings','plus','minus','trash','edit','up','down','check','x','play','pause','download','copy','refresh','chev','info','alert','save','flag','bug','hourglass','phone','eyeoff','volume','users','menu','restart','back','forward'].includes(k));
 
 /* ---------- small helpers ---------- */
 const S = () => A.s;
@@ -223,9 +225,25 @@ function openPrivate(pid, messages, title) { A.ui.overlay = { type: 'private', p
 function closeOverlay() { clearAutoHide(); const ov = A.ui.overlay; A.ui.overlay = null; A.ui.pin = ''; render(); if (ov && ov.after) ov.after(); }
 function renderOverlay(ov) {
   if (ov.type === 'reveal' || ov.type === 'private') return renderPrivateFlow(ov);
+  if (ov.type === 'result') return renderResult(ov);
   if (ov.type === 'cine') return renderCine(ov);
   if (ov.type === 'announce') return renderAnnounce(ov);
   return '';
+}
+// A night result for one player, shown straight from the Game Master's phone so nothing has to be said out loud.
+function renderResult(ov) {
+  const p = P(ov.pid);
+  const body = ov.roles && ov.roles.length
+    ? `<p class="ash" style="margin:0 0 12px">could be one of</p><div class="stack">${ov.roles.map(r => { const rr = role(r.id); return `<div class="msg result" style="font-size:20px;font-weight:650;display:flex;align-items:center;gap:10px">${rr ? icon(rr.icon) : ''}<span>${esc(r.name)}</span></div>`; }).join('')}</div>`
+    : `<div class="msg result" style="font-size:20px;font-weight:650">${esc(ov.text)}</div>`;
+  return `<div class="full" role="dialog" aria-modal="true" aria-label="Private result">
+    <div class="rolecard" style="--team:var(--moon)">
+      <div class="who">For ${esc(p ? p.name : 'you')} only</div>
+      <h2 class="display" style="font-size:32px;margin-bottom:12px">${ov.roles && ov.roles.length ? esc(ov.subject || 'Your target') : 'Your result'}</h2>
+      ${body}
+    </div>
+    <button class="btn primary big" style="margin-top:22px" data-a="ov-close">${icon('eyeoff')} Done — hide this</button>
+  </div>`;
 }
 function renderPrivateFlow(ov) {
   const pid = ov.type === 'reveal' ? ov.queue[ov.i] : ov.pid;
@@ -240,7 +258,8 @@ function renderPrivateFlow(ov) {
       <p class="ash" style="max-width:34ch;margin:0 0 26px">${ov.type === 'reveal' ? 'Only you should see the next screen. Hold the button to reveal your role.' : 'You have private information from the night. Hold the button to read it.'}</p>
       <button class="hold" data-hold="ov-show" data-ms="600" aria-label="Hold to reveal"><i class="fillbar"></i><span>Hold to reveal</span></button>
       ${ov.type === 'reveal' ? `<p class="tiny muted" style="margin-top:22px">${plural(remaining, 'player')} left to see their role</p>` : ''}
-      <button class="btn ghost sm" style="margin-top:24px" data-hold="ov-exit" data-ms="1500" aria-label="Game Master: hold to exit"><span>Game Master: hold to exit</span></button>
+      <p class="tiny muted" style="margin:26px 0 0">Game Master only</p>
+      <button class="btn skipall" data-a="ov-skip">${icon('forward', 'sm')} ${ov.type === 'reveal' ? 'Skip all reveals and close' : 'Close'}</button>
     </div>`;
   }
   // stage: card
@@ -277,7 +296,7 @@ function renderReturnToGod(ov) {
   const pin = A.s.config.godPin;
   return `<div class="full" role="dialog" aria-modal="true" aria-label="Return the phone">
     ${icon('phone', 'xl')}
-    <div class="bigname" style="font-size:clamp(34px,8vw,60px)">${ov.type === 'reveal' && ov.queue.length > 1 ? 'Everyone has seen their role' : 'Card hidden'}</div>
+    <div class="bigname" style="font-size:clamp(34px,8vw,60px)">${ov.skipped ? 'Reveal closed' : ov.type === 'reveal' && ov.queue.length > 1 ? 'Everyone has seen their role' : 'Card hidden'}</div>
     <p class="ash" style="max-width:36ch;margin:0 0 24px">Hand the phone back to the Game Master.</p>
     ${pin ? `<div class="who">Game Master PIN</div><div class="display" style="font-size:34px;letter-spacing:.4em;min-height:44px" aria-live="polite">${'•'.repeat(A.ui.pin.length)}</div>
       <div class="pin-pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'].map(d => d === '' ? '<span></span>' : `<button data-a="pin" data-v="${d}" aria-label="${d === '⌫' ? 'Delete' : d}">${d}</button>`).join('')}</div>`
@@ -326,6 +345,7 @@ function dispatch(a, v, el, ev) {
     render(); return;
   }
   if (a === 'ov-exit') { closeOverlay(); return; }
+  if (a === 'ov-skip') { if (A.s.config.godPin) { clearAutoHide(); ov.stage = 'done'; ov.skipped = true; render(); } else closeOverlay(); return; }
   if (a === 'ov-close') { closeOverlay(); return; }
   if (a === 'pin') {
     if (v === '⌫') A.ui.pin = A.ui.pin.slice(0, -1); else if (A.ui.pin.length < 4) A.ui.pin += v;
@@ -386,7 +406,9 @@ function phaseLabel() {
 }
 function topbar() {
   const last = A.hist[A.hist.length - 1];
+  const u = A.ui; const showBack = u.view !== 'command' || (A.s.phase === 'setup' && u.setupStep > 0);
   return `<header class="top">
+    ${showBack ? `<button class="iconbtn" data-a="back" aria-label="Go back" title="Back">${icon('back')}<span class="lbl">Back</span></button>` : ''}
     <button class="brand" data-a="go-home" aria-label="Omertà home">Omertà <small>Game Master</small></button>
     <span class="phasechip">${phaseLabel()}</span>${window.Online && Online.room ? `<span class="chip ok onlychip" title="Online room">${icon('phone', 'sm')} ${esc(Online.room.code)}</span>` : ''}
     <button class="iconbtn" data-a="undo" ${last ? '' : 'disabled'} aria-label="${last ? 'Undo: ' + esc(last.label) : 'Nothing to undo'}" title="${last ? 'Undo: ' + esc(last.label) : 'Nothing to undo'}">${icon('undo')}<span class="lbl">Undo</span></button>
@@ -449,7 +471,8 @@ function viewSetup() {
   const body = [stepPlayers, stepRoles, stepRules, stepDeal, stepReveal][st]();
   return wiz + body;
 }
-function footer(left, right) { return `<div class="footerbar"><div class="small ash">${left}</div><div class="row">${right}</div></div>`; }
+function wizBack() { const st = A.ui.setupStep; return `<button class="btn ghost" data-a="back">${icon('back', 'sm')} ${st === 0 ? 'Home' : 'Back'}</button>`; }
+function footer(left, right) { return `<div class="footerbar"><div class="small ash">${left}</div><div class="row">${wizBack()}${right}</div></div>`; }
 function nextBtn(i, label) { const b = setupBlocked(i); return `<button class="btn primary" data-a="setup-step" data-v="${i}" ${b ? 'disabled' : ''}>${label} ${icon('chev', 'sm')}</button>`; }
 
 function effN() { const s = A.s; return Math.max(5, Math.min(40, Math.max(s.players.length, s.setup.targetN || 10))); }
@@ -611,7 +634,8 @@ const CFG = [
     ['voteThreshold', 'sel', 'An execution needs', '', [['plurality', 'The most votes'], ['majority', 'A majority of voters']]],
     ['voteTie', 'sel', 'On a tie', '', [['none', 'Nobody is executed'], ['random', 'Pick one at random'], ['revote', 'Revote among the tied']]],
     ['allowSkip', 'bool', 'Allow a vote for no execution'],
-    ['mayorWeight', 'sel', "A revealed Mayor's vote counts", '', rng(1, 5, x => x + '×')],
+    ['mayorWeight', 'sel', "A revealed Mayor's vote counts", 'Scaled: 3 votes while more than 7 players are alive, then 2.', [['auto', 'Scaled (3, then 2)'], ...rng(1, 5, x => 'Always ' + x)], hasMayor],
+    ['mayorOnce', 'bool', "The Mayor's bonus vote works only once", 'Only the first vote after the Mayor reveals counts extra. After that the Mayor votes as one.', null, hasMayor],
   ]],
   ['Winning', [
     ['parity', 'bool', 'A killing faction wins at parity', 'When it matches everyone else alive, it controls the vote.'],
@@ -623,9 +647,10 @@ const CFG = [
     ['dayTimer', 'sel', 'Day discussion timer', '', [[0, 'Off'], [2, '2 min'], [3, '3 min'], [5, '5 min'], [8, '8 min'], [10, '10 min'], [15, '15 min']]],
   ]],
 ];
+function hasMayor(s) { return (s.setup.pool && s.setup.pool.mayor > 0) || s.players.some(p => p.roleId === 'mayor') || (s.initialRoles || []).some(r => r.roleId === 'mayor'); }
 function configPanel() {
   const c = A.s.config;
-  return CFG.map(([group, items]) => `<div class="panel tight" style="margin-top:12px"><h3>${group}</h3>${items.map(([k, t, label, desc, opts]) => t === 'bool'
+  return CFG.map(([group, all]) => [group, all.filter(it => !it[5] || it[5](A.s))]).filter(([, items]) => items.length).map(([group, items]) => `<div class="panel tight" style="margin-top:12px"><h3>${group}</h3>${items.map(([k, t, label, desc, opts]) => t === 'bool'
     ? `<div class="toggle"><div><div class="t" id="cl-${k}">${label}</div>${desc ? `<div class="d">${desc}</div>` : ''}</div><button class="switch" role="switch" aria-checked="${!!c[k]}" aria-labelledby="cl-${k}" data-a="cfg-toggle" data-v="${k}"></button></div>`
     : `<div class="toggle"><div style="flex:1"><label class="t" for="cf-${k}">${label}</label>${desc ? `<div class="d">${desc}</div>` : ''}</div><select id="cf-${k}" style="max-width:260px" data-c="cfg-set" data-key="${k}">${opts.map(([v, l]) => `<option value="${v}" ${String(c[k]) === String(v) ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`).join('')}</div>`).join('');
 }
@@ -680,7 +705,7 @@ function stepReveal() {
           <div class="row" style="margin-top:12px"><button class="btn primary big" data-a="start-game">${icon('moon')} Begin Night 1</button></div></div>
         <div class="panel"><h3>Show one player on this phone</h3><p class="ash small">For anyone without a phone, or whose phone died.</p>
           <div class="row" style="flex-wrap:nowrap"><select id="reveal-one" aria-label="Player">${s.players.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select><button class="btn" data-a="reveal-one">Show</button></div></div>
-      </div><div class="section">${onlinePanel()}</div>`;
+      </div><div class="section">${onlinePanel()}</div><div class="row" style="margin-top:16px">${wizBack()}</div>`;
   }
   return `<h1 class="display" style="font-size:clamp(36px,7vw,54px)">Reveal the roles</h1>
     <p class="lead">Pass the phone around in seat order. Each player holds the button to see only their own role, then hides it before passing on. Mafia members also see their teammates.</p>
@@ -691,7 +716,7 @@ function stepReveal() {
           : `<button class="btn primary big" data-a="reveal-all">${icon('phone')} Start the reveal</button><button class="btn ghost" data-a="start-game">Skip — roles were shared another way</button>`}</div></div>
       <div class="panel"><h3>Show one player again</h3><p class="ash small">If someone missed their card or the phone went to the wrong person.</p>
         <div class="row" style="flex-wrap:nowrap"><select id="reveal-one" aria-label="Player">${s.players.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select><button class="btn" data-a="reveal-one">Show</button></div></div>
-    </div>`;
+    </div><div class="row" style="margin-top:16px">${wizBack()}</div>`;
 }
 
 /* Omertà — views part 2: the running game */
@@ -864,7 +889,10 @@ function liveAnswer(actor, ab, d) {
     const up = /^Thumbs up/.test(m);
     return `<div class="panel tight" style="margin-top:14px;text-align:center;${up ? 'border-color:var(--mafia)' : ''}"><div class="small ash">Signal now</div><div class="display" style="font-size:30px;${up ? 'color:var(--mafia)' : ''}">${up ? 'Give a thumbs up' : ab.kind === 'checkSus' ? 'Give a thumbs down' : 'No thumbs up'}</div><div class="small ash">${esc(m)}</div>${moved}</div>`;
   }
-  return `<div class="panel tight" style="margin-top:14px"><div class="small ash">Tell them now (or at dawn)</div><div style="font-weight:650;margin-top:4px">${esc(m)}</div>${moved}</div>`;
+  const who = esc(actor.name);
+  return `<div class="panel tight" style="margin-top:14px"><div class="small ash">Result ready</div>
+    <div style="font-weight:650;margin-top:4px">Show ${who} a private screen instead of saying it out loud.</div>
+    <div class="row" style="margin-top:10px"><button class="btn primary" data-a="show-result" data-v="${actor.id}">${icon('eye', 'sm')} Show result to ${who}</button></div>${moved}</div>`;
 }
 function scriptFor(st, d) {
   const ab = st.abilities.find(a => a.id === d.ab) || st.abilities[0];
@@ -956,18 +984,47 @@ function fmtClock(ms) { const sec = Math.ceil(ms / 1000); return `${Math.floor(s
 function dayAbilitiesCard() {
   const s = A.s; const rows = [];
   for (const p of s.players.filter(p => p.alive)) {
-    if (p.roleId === 'mayor' && !p.fx.revealed) rows.push(`<div class="prow" style="grid-template-columns:1fr auto"><div><b>${esc(p.name)}</b> <span class="muted small">· Mayor</span><div class="small ash">May reveal for a ${s.config.mayorWeight}× vote.</div></div><button class="btn sm" data-a="mayor-reveal" data-v="${p.id}">${icon('crown', 'sm')} Reveal</button></div>`);
+    if (p.roleId === 'mayor' && !p.fx.revealed) rows.push(`<div class="prow" style="grid-template-columns:1fr auto"><div><b>${esc(p.name)}</b> <span class="muted small">· Mayor</span><div class="small ash">May reveal; their vote then counts as ${E.mayorRuleText(s)}.</div></div><button class="btn sm" data-a="mayor-reveal" data-v="${p.id}">${icon('crown', 'sm')} Reveal</button></div>`);
     if (['goodguesser', 'evilguesser'].includes(p.roleId)) { const st = E.guessStatus(s, p); rows.push(`<div class="prow" style="grid-template-columns:1fr auto"><div><b>${esc(p.name)}</b> <span class="muted small">· ${esc(role(p.roleId).name)}</span><div class="small ash">${p.uses.guess || 0} shots left${st.ok ? '' : ' · ' + esc(st.why)}</div></div><button class="btn sm" data-a="guess-open" data-v="${p.id}" ${st.ok ? '' : 'disabled'}>${icon('dice', 'sm')} Guess</button></div>`); }
   }
   return `<div class="panel"><h3>Day abilities</h3>${rows.length ? rows.join('') : '<p class="muted small" style="margin:6px 0 0">No living player has a day ability right now.</p>'}</div>`;
 }
+function mayorNote() {
+  const s = A.s; const w = E.mayorMultiplier(s);
+  return s.players.filter(p => p.alive && p.roleId === 'mayor' && p.fx.revealed).map(m => {
+    const left = E.mayorBonusLeft(s, m);
+    const txt = !s.config.mayorOnce ? `counts as ${w} votes` : left ? `counts as ${w} votes, one time only (not used yet)` : 'has used the one-time bonus and counts as 1 vote';
+    return `<div class="msg status" style="margin:10px 0 0">${icon('crown', 'sm')} <b>${esc(m.name)}</b> (Mayor) ${txt}${E.canVote(s, m) ? '' : ' — silenced today, cannot vote'}.${s.config.mayorOnce ? ` <button class="btn ghost sm" data-a="mayor-bonus" data-v="${m.id}">${left ? 'Mark used' : 'Mark available'}</button>` : ''}</div>`;
+  }).join('');
+}
 function voteCard() {
   const s = A.s; const ds = s.dayState; const alive = s.players.filter(p => p.alive);
   if (ds.done) { const r = ds.result || {}; const t = r.target ? E.pname(s, r.target) : '';
-    return `<div class="panel"><h2>Execution</h2><p style="font-size:18px">${r.type === 'execute' ? (r.spared ? `${esc(t)} was voted out — but survived.` : `${esc(t)} was executed.`) : esc(r.reason || 'No execution.')}</p></div>`; }
-  return `<div class="panel"><h2>Execution</h2><p class="ash small">Tap a player to execute, or skip.</p>
-    <div class="targets" style="margin-top:10px">${alive.map(p => `<button class="tgt" data-a="exec-pick" data-v="${p.id}"><span class="dot" style="--c:${p.color}"></span>${esc(p.name)}</button>`).join('')}</div>
-    <div class="actionbar"><button class="btn ghost" data-a="vote-skip">${icon('forward')}<span class="t">Skip execution</span></button></div></div>`;
+    return `<div class="panel"><h2>Execution</h2><p style="font-size:18px">${r.type === 'execute' ? (r.spared ? `${esc(t)} was voted out — but survived.` : `${esc(t)} was executed${r.random ? ' (random tie-break)' : ''}.`) : esc(r.reason || 'No execution.')}</p></div>`; }
+  const pick = `<div class="targets" style="margin-top:10px">${alive.map(p => `<button class="tgt" data-a="exec-pick" data-v="${p.id}"><span class="dot" style="--c:${p.color}"></span>${esc(p.name)}</button>`).join('')}</div>`;
+  const skip = `<div class="actionbar"><button class="btn ghost" data-a="vote-skip">${icon('forward')}<span class="t">Skip execution</span></button></div>`;
+  if (!ds.open) {
+    const phones = window.Online && Online.room && (Online.status.seats || []).some(x => x.claimed);
+    return `<div class="panel"><h2>Execution</h2>${mayorNote()}
+      ${phones ? `<p class="ash small" style="margin-top:8px">Players have their phones. Let them vote, or just name who the town chose.</p>
+        <div class="row" style="margin-top:8px"><button class="btn primary" data-a="vote-open">${icon('hand')} Let phones vote</button></div>
+        <p class="ash small" style="margin:14px 0 0">Or tap a player to execute them now:</p>` : `<p class="ash small" style="margin-top:8px">Tap a player to execute, or skip.</p>`}
+      ${pick}${skip}</div>`;
+  }
+  const t = E.tally(s); const opts = ds.nominees.concat(s.config.allowSkip ? ['skip'] : []);
+  const nm = id => id === 'skip' ? 'No execution' : E.pname(s, id);
+  const max = Math.max(1, ...Object.values(t.totals)); const r = t.result;
+  const preview = r.type === 'execute' ? `${esc(nm(r.target))} would be executed.` : r.type === 'revote' ? `Tie between ${r.tied.map(x => esc(nm(x))).join(' and ')} — a revote would follow.` : r.type === 'random' ? `Tie between ${r.tied.map(x => esc(nm(x))).join(' and ')} — one is picked at random.` : esc(r.reason);
+  const seats = (window.Online && Online.status && Online.status.seats) || [];
+  const noPhone = alive.filter(p => E.canVote(s, p) && !(seats.find(x => x.id === p.id) || {}).claimed);
+  return `<div class="panel glow"><div class="row between"><h2>Voting on phones${ds.round > 1 ? ` · round ${ds.round}` : ''}</h2><span class="chip">${t.cast} of ${t.totalW} votes in</span></div>
+    ${mayorNote()}
+    <div class="bars" style="margin-top:12px">${opts.map(o => `<div class="bar"><span class="small" style="font-weight:650">${esc(nm(o))}</span><div class="track"><div class="fill ${o === 'skip' ? 'skip' : ''}" style="width:${(t.totals[o] || 0) / max * 100}%"></div></div><b>${t.totals[o] || 0}</b></div>`).join('')}</div>
+    <p style="margin:12px 0 0"><b>${preview}</b></p>
+    <div class="actionbar"><button class="btn primary" data-a="vote-confirm">${icon('gavel')}<span class="t">Lock in the result</span></button><button class="btn ghost" data-a="vote-close">Close voting</button></div>
+    ${noPhone.length ? `<div style="margin-top:14px"><h3 class="small ash" style="margin:0">Players without a phone: enter their vote</h3>
+      ${noPhone.map(p => `<label class="field" style="margin-top:8px"><span>${esc(p.name)}${E.voteWeight(s, p) > 1 ? ` · ${E.voteWeight(s, p)}×` : ''}</span><select data-c="vote-manual" data-pid="${p.id}"><option value="">No vote yet</option>${opts.map(o => `<option value="${o}" ${ds.votes[p.id] === o ? 'selected' : ''}>${esc(nm(o))}</option>`).join('')}</select></label>`).join('')}</div>` : ''}
+    <p class="ash small" style="margin:14px 0 0">Or tap a player to execute them now:</p>${pick}</div>`;
 }
 
 /* ---------- game over ---------- */
@@ -1205,7 +1262,12 @@ function renderSheet(sh) {
   else if (sh.type === 'import') body = `<header><h2>Import a save</h2><button class="iconbtn" data-a="sheet-close" aria-label="Close">${icon('x')}</button></header>
     <p class="ash small">Paste the contents of an Omertà save file. This replaces the current game.</p><label class="sr" for="imp">Save data</label><textarea id="imp" style="min-height:160px" placeholder='{"v":1, …}'></textarea>
     <div class="row" style="margin-top:14px"><button class="btn primary" data-a="import-go">Import</button><button class="btn ghost" data-a="sheet-close">Cancel</button></div>`;
-  else if (sh.type === 'copytext') body = `<header><h2>${esc(sh.title)}</h2><button class="iconbtn" data-a="sheet-close" aria-label="Close">${icon('x')}</button></header>
+  else if (sh.type === 'diag') { const d = sh.data || { steps: [] };
+    body = `<header><h2>Online room check</h2><button class="iconbtn" data-a="sheet-close" aria-label="Close">${icon('x')}</button></header>
+    <p class="small ${d.ok ? '' : 'ash'}" style="margin:0 0 8px">${d.ok ? 'Everything looks right. Close this and try hosting again.' : 'Something needs fixing before rooms can open:'}</p>
+    ${d.steps.map(st => `<div class="prow" style="grid-template-columns:auto minmax(0,1fr)"><span style="color:var(--${st.ok ? 'ok' : 'danger'})">${icon(st.ok ? 'check' : 'alert')}</span><div><b>${esc(st.name)}</b> <span class="muted small">· ${esc(st.detail)}</span>${st.fix ? `<div class="small" style="color:var(--warn);margin-top:4px">${esc(st.fix)}</div>` : ''}</div></div>`).join('')}
+    <div class="row" style="margin-top:14px"><button class="btn primary" data-a="online-check">${icon('refresh')} Check again</button><button class="btn ghost" data-a="sheet-close">Close</button></div>`; }
+  else if (sh.type === 'copytext') body =`<header><h2>${esc(sh.title)}</h2><button class="iconbtn" data-a="sheet-close" aria-label="Close">${icon('x')}</button></header>
     <p class="ash small">Saving files isn't available here, so select this text and copy it.</p><label class="sr" for="cpt">Text</label><textarea id="cpt" readonly style="min-height:220px;font-size:13px">${esc(sh.text)}</textarea>`;
   return `<div class="scrim" data-a="sheet-close"><div class="sheet" role="dialog" aria-modal="true" data-a="noop"><div class="grab" aria-hidden="true"></div>${body}</div></div>`;
 }
@@ -1243,10 +1305,11 @@ Object.assign(H, {
   'confirm-ok'() { const fn = A.ui.sheet && A.ui.sheet.onOk; A.ui.sheet = null; if (fn) fn(); render(); },
   undo() { undo(); },
   'toggle-sound'() { A.prefs.sound = !A.prefs.sound; savePrefs(); if (A.prefs.sound) { Sound.init(); Sound.confirm(); } render(); },
-  nav(v) { A.ui.view = v; A.ui.sheet = null; top0(); render(); },
-  'go-home'() { A.ui.view = 'home'; A.ui.sheet = null; render(); },
-  resume() { A.ui.view = 'command'; render(); },
-  'home-roles'() { A.ui.view = 'roles'; render(); },
+  nav(v) { A.ui.view = v; A.ui.sheet = null; if (v === 'command') A.ui.backTo = null; top0(); render(); },
+  'go-home'() { A.ui.view = 'home'; A.ui.sheet = null; A.ui.backTo = null; render(); },
+  resume() { A.ui.view = 'command'; A.ui.backTo = null; render(); },
+  'home-roles'() { A.ui.view = 'roles'; A.ui.backTo = 'home'; render(); },
+  back() { goBack(); },
   'new-game'() {
     const s = A.s; if (s.phase === 'setup' && !s.players.length) { newGameNow(); return; }
     confirmSheet({ title: 'Start a new game?', body: s.phase === 'ended' ? 'The finished game will be replaced. Export its log first if you want a record.' : 'The current game will be replaced. Export a save file first if you want to keep it.', ok: 'Start a new game', danger: s.phase !== 'ended', onOk: newGameNow });
@@ -1323,7 +1386,7 @@ Object.assign(H, {
   'preset-load'(v) { const p = A.presets[+v]; if (!p) return; setupMut(s => { s.setup.pool = E.clone(p.pool); s.setup.poolTouched = true; s.setup.dealt = false; }); toast(`Loaded “${p.name}”`); },
   'preset-del'(v) { const p = A.presets[+v]; confirmSheet({ title: `Delete “${p.name}”?`, body: 'This removes the saved preset from this device.', ok: 'Delete', danger: true, onOk: () => { A.presets.splice(+v, 1); LS.set(PRKEY, A.presets); } }); },
   'cfg-toggle'(k) { const s = A.s; s.config[k] = !s.config[k]; if (s.phase !== 'setup') E.log(s, 'override', `Rule changed: ${k} → ${s.config[k] ? 'on' : 'off'}.`); save(); render(); },
-  'cfg-set'(v, el) { const s = A.s; const k = el.dataset.key; const num = ['convertCap', 'guessShots', 'mayorWeight', 'dayTimer', 'stalemateCycles'].includes(k); s.config[k] = num ? +v : v; if (k === 'dayTimer') A.ui.timer = null; if (s.phase !== 'setup') E.log(s, 'override', `Rule changed: ${k} → ${v}.`); save(); render(); },
+  'cfg-set'(v, el) { const s = A.s; const k = el.dataset.key; const num = ['convertCap', 'guessShots', 'dayTimer', 'stalemateCycles'].includes(k); s.config[k] = num ? +v : v; if (k === 'dayTimer') A.ui.timer = null; if (s.phase !== 'setup') E.log(s, 'override', `Rule changed: ${k} → ${v}.`); save(); render(); },
   'cfg-reset'() { confirmSheet({ title: 'Restore default rules?', body: 'Every house rule goes back to its default. Your PIN is kept.', ok: 'Restore defaults', onOk: () => { const pin = A.s.config.godPin; A.s.config = E.clone(E.DEFAULT_CONFIG); A.s.config.godPin = pin; save(); toast('Defaults restored'); } }); },
   peek(v) { A.ui.peek[v] = !A.ui.peek[v]; render(); },
   'toggle-assign'() { A.ui.showAssign = !A.ui.showAssign; render(); },
@@ -1437,7 +1500,7 @@ Object.assign(H, {
   /* day */
   'timer-toggle'() { const t = A.ui.timer; if (!t) return; if (t.running) { t.left = Math.max(0, t.endAt - Date.now()); t.running = false; } else { if (t.left <= 0) t.left = t.total; t.endAt = Date.now() + t.left; t.running = true; } render(); },
   'timer-reset'() { A.ui.timer = null; render(); },
-  'mayor-reveal'(id) { confirmSheet({ title: `Reveal ${E.pname(A.s, id)} as the Mayor?`, body: `Their vote will count ${A.s.config.mayorWeight}×, and Doctors can no longer heal them.`, ok: 'Reveal the Mayor', onOk: () => cmd('Mayor revealed', s => E.mayorReveal(s, id)) }); },
+  'mayor-reveal'(id) { confirmSheet({ title: `Reveal ${E.pname(A.s, id)} as the Mayor?`, body: `Their vote will count as ${E.mayorRuleText(A.s)}, and Doctors can no longer heal them.`, ok: 'Reveal the Mayor', onOk: () => cmd('Mayor revealed', s => E.mayorReveal(s, id)) }); },
   'guess-open'(id) { A.ui.sheet = { type: 'guess', id }; render(); },
   'guess-go'(gid) {
     const t = val('g-t'), r = val('g-r'); if (!t || !r) return; let res = null;
@@ -1450,6 +1513,24 @@ Object.assign(H, {
       onOk: () => { const before = A.s.deaths.length; cmd(`Day ${A.s.day}: execute ${name}`, s => E.quickExecute(s, id)); if (A.s.deaths.length > before) Sound.kill(); render(); } });
   },
   'vote-skip'() { confirmSheet({ title: 'Skip execution?', body: 'Nobody is executed today.', ok: 'Skip', onOk: () => cmd(`Day ${A.s.day}: no vote`, s => E.skipVote(s)) }); },
+  'vote-open'() { const ids = A.s.players.filter(p => p.alive).map(p => p.id); cmd(`Day ${A.s.day}: let phones vote`, s => E.openVote(s, ids)); },
+  'vote-close'() { cmd(`Day ${A.s.day}: close phone voting`, s => E.cancelVote(s)); },
+  'vote-manual'(v, el) { const s = A.s; const ds = s.dayState; const p = E.getP(s, el.dataset.pid); if (!ds || !ds.open || !p || !E.canVote(s, p)) return; if (v) ds.votes[p.id] = v; else delete ds.votes[p.id]; save(); Sound.tick(); render(); },
+  'vote-confirm'() {
+    const s = A.s; const t = E.tally(s); const r = t.result; const nm = id => id === 'skip' ? 'no execution' : E.pname(s, id);
+    const go = () => { const before = A.s.deaths.length; cmd(`Day ${A.s.day} vote`, s2 => E.confirmVote(s2)); if (A.s.deaths.length > before) Sound.kill(); render(); };
+    if (r.type === 'execute') confirmSheet({ title: `Execute ${nm(r.target)}?`, body: `${nm(r.target)} received ${t.totals[r.target]} vote${t.totals[r.target] === 1 ? '' : 's'}. Death abilities trigger immediately. You can undo this.`, ok: `Execute ${nm(r.target)}`, danger: true, onOk: go });
+    else if (r.type === 'revote') confirmSheet({ title: 'Tie — hold a revote?', body: `${r.tied.map(nm).join(' and ')} are tied. Votes are cleared and only they stay on trial.`, ok: 'Start the revote', onOk: go });
+    else if (r.type === 'random') confirmSheet({ title: 'Tie — pick at random?', body: `${r.tied.map(nm).join(' and ')} are tied. One outcome is chosen at random.`, ok: 'Pick at random', danger: true, onOk: go });
+    else confirmSheet({ title: 'No execution', body: r.reason, ok: 'Confirm', onOk: go });
+  },
+  'show-result'(pid) {
+    const d = A.ui.draft; if (!d || d.key !== pid || !d.targets[0]) return;
+    let pv; try { pv = E.previewResult(A.s, { key: pid, actor: pid, ab: d.ab, targets: d.targets.slice(), opts: {} }); } catch (e) { return; }
+    if (!pv.messages[0]) return;
+    A.ui.overlay = { type: 'result', pid, text: pv.messages[0], roles: pv.roles, subject: pv.subject }; A.ui.sheet = null; Sound.tick(); render();
+  },
+  'mayor-bonus'(id) { cmd('Mayor vote bonus', s => E.mayorBonusSet(s, id, E.mayorBonusLeft(s, E.getP(s, id)))); },
   'end-day'() {
     if (!cmd(`End Day ${A.s.day}`, s => E.endDay(s))) return;
     if (A.s.phase === 'night') { Object.assign(A.ui, { nightIdx: 0, draft: null }); Sound.night(); A.ui.overlay = { type: 'cine', kind: 'night', n: A.s.night }; }
@@ -1513,6 +1594,33 @@ Object.assign(H, {
   'debug-toggle'() { A.ui.debug = !A.ui.debug; render(); },
 });
 
+/* ---------- going back: the Back buttons and the phone's own Back ---------- */
+let backArmed = 0;
+// Leaving a screen with a single stray swipe is easy to do by accident, so the exits ask twice.
+function confirmBackTwice(msg) { const now = Date.now(); if (now - backArmed < 2500) { backArmed = 0; return true; } backArmed = now; toast(msg); return false; }
+function goBack() {
+  const u = A.ui, s = A.s, ov = u.overlay;
+  if (ov) {
+    if (['cine', 'announce', 'result'].includes(ov.type)) { closeOverlay(); return 'handled'; }
+    if (ov.stage === 'card') { dispatch('ov-hide'); return 'handled'; }   // hide a private card; never expose the Game Master's screen
+    toast('Use the buttons on this screen.'); return 'handled';
+  }
+  if (u.sheet) { u.sheet = null; render(); return 'handled'; }
+  if (u.view === 'home') return confirmBackTwice('Press Back again to leave Omertà') ? 'exit' : 'handled';
+  if (u.view !== 'command') { u.view = u.backTo || 'command'; u.backTo = null; top0(); render(); return 'handled'; }
+  if (s.phase === 'setup') { if (u.setupStep > 0) u.setupStep--; else u.view = 'home'; top0(); render(); return 'handled'; }
+  if (s.phase === 'night' && u.nightIdx > 0) { u.nightIdx--; u.draft = null; render(); return 'handled'; }
+  if (confirmBackTwice('Press Back again to go to the home screen')) { u.view = 'home'; render(); }
+  return 'handled';
+}
+function initBackNav() {
+  try { history.replaceState({ omerta: 'root' }, ''); history.pushState({ omerta: 'app' }, ''); } catch (e) { return; }
+  window.addEventListener('popstate', () => {
+    if (goBack() === 'exit') { try { history.back(); } catch (e) {} return; }
+    try { history.pushState({ omerta: 'app' }, ''); } catch (e) {}
+  });
+}
+
 /* ---------- timer tick & init ---------- */
 setInterval(() => {
   const t = A.ui.timer; if (!t || !t.running) return;
@@ -1520,7 +1628,7 @@ setInterval(() => {
   if (left <= 0) { t.running = false; t.left = 0; Sound.end(); toast('Time is up — move to the vote.'); render(); }
 }, 250);
 document.addEventListener('visibilitychange', () => { if (document.hidden && A.s) save(); });
-boot(); render();
+boot(); render(); initBackNav();
 
 /* Omertà — online rooms, Game Master side. Inert inside Claude (no server there). */
 'use strict';
@@ -1577,13 +1685,20 @@ const voteKey = s => s.phase === 'day' && s.dayState && s.dayState.open ? `D${s.
 /* ---------- connection ---------- */
 const Online = {
   avail: false, cfg: null, room: LS.get(OKEY, null), status: { seats: [], votes: [] }, sb: null, ch: null,
-  pushT: null, pollT: null, lastSent: '', applied: {}, err: '', busy: false,
+  pushT: null, pollT: null, lastSent: '', applied: {}, err: '', busy: false, checking: false,
   link() { return `${location.origin}/play?room=${this.room.code}`; },
   async api(action, body) {
-    const r = await fetch('/api/room?action=' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ action }, body || {})) });
+    let r;
+    try { r = await fetch('/api/room?action=' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ action }, body || {})) }); }
+    catch (e) { throw Object.assign(new Error('No connection to the server. Check the internet and try again.'), { status: 0 }); }
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw Object.assign(new Error(j.error || 'Could not reach the server.'), { status: r.status });
+    if (!r.ok) throw Object.assign(new Error(j.error || `The server did not answer properly (HTTP ${r.status}). Tap “Check connection”.`), { status: r.status });
     return j;
+  },
+  async diagnose() {
+    try { const r = await fetch('/api/room?action=diagnose', { cache: 'no-store' }); const j = await r.json(); if (r.ok && Array.isArray(j.steps)) return j; }
+    catch (e) { /* falls through */ }
+    return { ok: false, steps: [{ name: 'Server', ok: false, detail: 'The site did not answer.', fix: 'Check the internet connection. If it is fine, check that the Vercel deployment is live.' }] };
   },
   async init() {
     if (window.claude && window.claude.use) return;
@@ -1597,12 +1712,12 @@ const Online = {
     render();
   },
   async host() {
-    if (this.busy) return; this.busy = true; render();
+    if (this.busy) return; this.busy = true; this.err = ''; render();
     try {
       const j = await this.api('create');
       this.room = { code: j.code, hostSecret: j.hostSecret }; LS.set(OKEY, this.room);
       this.connect(); await this.push(true); await this.refresh(); toast(`Room ${j.code} is open`);
-    } catch (e) { toast(e.message); }
+    } catch (e) { this.err = e.message; toast(e.message); }
     this.busy = false; render();
   },
   connect() {
@@ -1665,8 +1780,10 @@ function applyRemoteVotes(votes, key) {
 function qrSvg(text) { try { if (typeof qrcode !== 'function') return ''; const q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); } catch (e) { return ''; } }
 function onlinePanel() {
   const O = Online; if (!O.avail) return '';
-  if (O.avail === 'unconfigured') return `<div class="panel tight"><h3>${icon('phone', 'sm')} Play on everyone's phones</h3><p class="small ash" style="margin:6px 0 0">Online play isn't switched on for this site yet. Add the Supabase keys in Vercel (see the README), then redeploy.</p></div>`;
-  if (!O.room) return `<div class="panel glow"><h3>${icon('phone', 'sm')} Play on everyone's phones</h3><p class="small ash">Players open this site on their own phones, enter a room code and tap their name. Their role, private results and votes then appear on their own phone — no passing around.</p><button class="btn primary" data-a="online-host" ${O.busy ? 'disabled' : ''}>${icon('users')} Host an online room</button></div>`;
+  const errLine = () => O.err ? `<p class="small" style="color:var(--warn);margin:10px 0 0">${icon('alert', 'sm')} ${esc(O.err)}</p>` : '';
+  const checkBtn = (cls = '') => `<button class="btn sm ${cls}" data-a="online-check" ${O.checking ? 'disabled' : ''}>${icon('refresh', 'sm')} ${O.checking ? 'Checking…' : 'Check connection'}</button>`;
+  if (O.avail === 'unconfigured') return `<div class="panel tight"><h3>${icon('phone', 'sm')} Play on everyone's phones</h3><p class="small ash" style="margin:6px 0 0">Online play isn't switched on for this site yet. Add the Supabase keys in Vercel (see the README), then redeploy.</p>${errLine()}<div class="row" style="margin-top:10px">${checkBtn()}</div></div>`;
+  if (!O.room) return `<div class="panel glow"><h3>${icon('phone', 'sm')} Play on everyone's phones</h3><p class="small ash">Players open this site on their own phones, enter a room code and tap their name. Their role, private results and votes then appear on their own phone — no passing around.</p><button class="btn primary" data-a="online-host" ${O.busy ? 'disabled' : ''}>${icon('users')} ${O.busy ? 'Opening the room…' : 'Host an online room'}</button>${errLine()}${O.err ? `<div class="row" style="margin-top:10px">${checkBtn()}</div>` : ''}</div>`;
   const seats = O.status.seats || []; const joined = A.s.players.filter(p => (seats.find(x => x.id === p.id) || {}).claimed).length; const qr = qrSvg(O.link());
   return `<div class="panel glow">
     <div class="row between"><h3>${icon('phone', 'sm')} Online room</h3><span class="chip ${joined === A.s.players.length && joined ? 'ok' : 'warn'}">${joined} of ${A.s.players.length} joined</span></div>
@@ -1677,11 +1794,12 @@ function onlinePanel() {
     <p class="tiny muted" style="margin:10px 0 0">Players scan the code or open the link, then tap their own name. Each name can only be claimed once.</p>
     <div style="margin-top:6px">${A.s.players.length ? A.s.players.map(p => { const st = seats.find(x => x.id === p.id) || {};
       return `<div class="prow" style="grid-template-columns:auto minmax(0,1fr) auto"><span class="dot" style="--c:${p.color}"></span><div><b>${esc(p.name)}</b><div class="tiny" style="color:${st.claimed ? 'var(--ok)' : 'var(--dim)'}">${st.claimed ? (st.seen ? 'Joined · has seen their role' : 'Joined') : 'Not joined yet'}</div></div>${st.claimed ? `<button class="btn ghost sm" data-a="online-reset" data-v="${p.id}" aria-label="Reset ${esc(p.name)}'s phone">Reset</button>` : ''}</div>`; }).join('') : '<p class="small muted">Add players and they appear here to be claimed.</p>'}</div>
-    ${O.err ? `<p class="small" style="color:var(--warn);margin-top:8px">${icon('alert', 'sm')} ${esc(O.err)}</p>` : ''}
-    <div class="row" style="margin-top:10px"><button class="btn ghost sm" data-a="online-close">Close the room</button></div></div>`;
+    ${errLine()}
+    <div class="row" style="margin-top:10px">${O.err ? checkBtn() : ''}<button class="btn ghost sm" data-a="online-close">Close the room</button></div></div>`;
 }
 Object.assign(H, {
   'online-host'() { Online.host(); },
+  async 'online-check'() { Online.checking = true; render(); const d = await Online.diagnose(); Online.checking = false; A.ui.sheet = { type: 'diag', data: d }; render(); },
   'online-copy'() { const l = Online.link(); (navigator.clipboard ? navigator.clipboard.writeText(l) : Promise.reject()).then(() => toast('Link copied'), () => { A.ui.sheet = { type: 'copytext', title: 'Join link', text: l }; render(); }); },
   'online-reset'(id) { confirmSheet({ title: `Reset ${E.pname(A.s, id)}'s phone?`, body: 'Whoever joined as this player is disconnected, and the name can be claimed again. Use this if the wrong person tapped the name or a phone changed.', ok: 'Reset seat', danger: true, onOk: () => Online.resetSeat(id) }); },
   'online-close'() { confirmSheet({ title: 'Close the online room?', body: 'Every phone is disconnected. The game itself continues on this phone.', ok: 'Close the room', danger: true, onOk: () => Online.close() }); },
