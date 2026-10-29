@@ -93,7 +93,7 @@ const ok = (c, m) => c ? pass++ : fails.push(m);
     ok(!(await text(ph.Rahul)).includes('Thumbs up'), "Rahul's phone never sees Priya's result");
 
     // ---- voting from phones
-    await god.evaluate(ids => { H['nom-toggle'](ids.Kabir); H['nom-toggle'](ids.Isha); H['vote-open'](); }, ids);
+    await god.evaluate(() => { H['vote-open'](); });   // everyone alive is on trial; no nomination step
     ok(await waitText(ph.Priya, 'Vote'), 'vote appears on phones');
     ok(await waitText(ph.Rahul, 'Vote'), 'vote appears on the second phone');
     ok(await waitText(ph.Aman, 'You are out, so you cannot vote'), 'dead player cannot vote');
@@ -105,7 +105,7 @@ const ok = (c, m) => c ? pass++ : fails.push(m);
     await ph.Rahul.evaluate(id => document.querySelector(`[data-a="vote"][data-v="${id}"]`).click(), ids.Kabir); // change of mind
     await sleep(3800);
     ok(await god.evaluate(id => A.s.dayState.votes[id], ids.Rahul) === ids.Kabir, 'changed phone vote updates the God tally');
-    await god.evaluate(ids => { H['vote-nominee'](ids.Kabir); for (const n of ['Neha', 'Isha']) H['vote-cast'](ids[n]); H['vote-confirm'](); H['confirm-ok'](); }, ids);
+    await god.evaluate(ids => { for (const n of ['Neha', 'Isha']) H['vote-manual'](ids.Kabir, { dataset: { pid: ids[n] } }); H['vote-confirm'](); H['confirm-ok'](); }, ids);
     ok(await god.evaluate(id => !Engine.getP(A.s, id).alive, ids.Kabir), 'Kabir executed with mixed phone + hand votes');
     ok(await waitText(ph.Priya, 'Kabir was executed'), 'vote result shown on phones');
     ok(!(await overflow(ph.Priya)) && !(await overflow(ph.Aman)), 'day screens fit 375px and 320px');

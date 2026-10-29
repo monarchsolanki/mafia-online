@@ -11,12 +11,16 @@ const expectErr = async (p, status, m) => { try { await p; fails.push(m + ' (no 
 // ---- a minimal PostgREST stand-in: eq / is.null / not.in filters, select, order, upsert-merge, PATCH representation, DELETE
 function fakePostgrest(port) {
   const db = { rooms: [], seats: [], votes: [] }; const keys = { rooms: ['code'], seats: ['room_code', 'seat_id'], votes: ['room_code', 'seat_id', 'vote_key'] };
-  const seen = [];
+  const seen = []; let mode = ''; // 'missing' = tables not created, 'badkey' = key rejected, 'paused' = project paused
+  const fail = (res, status, body) => { res.statusCode = status; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(body)); };
   const match = (row, filters) => filters.every(([col, op, val]) => op === 'eq' ? String(row[col]) === val : op === 'is' ? (val === 'null' ? row[col] == null : false) : op === 'lt' ? String(row[col]) < val : op === 'not.in' ? !val.includes(String(row[col])) : true);
   const server = http.createServer((req, res) => {
     let body = ''; req.on('data', c => body += c); req.on('end', () => {
       const u = new URL(req.url, 'http://x'); const table = u.pathname.replace('/rest/v1/', '');
       seen.push(`${req.method} ${req.url}`);
+      if (mode === 'missing') return fail(res, 404, { code: 'PGRST205', message: "Could not find the table 'public.rooms' in the schema cache" });
+      if (mode === 'badkey') return fail(res, 401, { message: 'Invalid API key' });
+      if (mode === 'paused') return fail(res, 540, { message: 'Project is paused' });
       if (!req.headers.apikey) { res.statusCode = 401; return res.end('{"message":"no apikey"}'); }
       if (!db[table]) { res.statusCode = 404; return res.end('{}'); }
       const filters = []; let order = null, onConflict = null;
@@ -47,7 +51,7 @@ function fakePostgrest(port) {
       }
     });
   });
-  return new Promise(r => server.listen(port, () => r({ server, db, seen })));
+  return new Promise(r => server.listen(port, () => r({ server, db, seen, setMode: m => { mode = m; } })));
 }
 
 async function suite(store, label) {
@@ -99,9 +103,50 @@ async function suite(store, label) {
   const { getStore } = require(path.join(__dirname, '..', 'lib', 'store'));
   await suite(getStore(), 'supabase-REST');
   ok(fake.seen.some(s => /seats\?on_conflict=room_code,seat_id/.test(s)) && fake.seen.some(s => /token_hash=is\.null/.test(s)) && fake.seen.some(s => /seat_id=not\.in\.\(p1,p2\)/.test(s)), 'REST: upsert, atomic claim and seat pruning use the expected filters');
-  process.env.SUPABASE_SECRET_KEY = ''; process.env.VERCEL = '1';
-  delete require.cache[require.resolve(path.join(__dirname, '..', 'lib', 'store'))];
-  try { require(path.join(__dirname, '..', 'lib', 'store')).getStore(); fails.push('missing config on Vercel should error'); } catch (e) { ok(e.status === 503 && /SUPABASE_URL/.test(e.message), 'clear error when Vercel env vars are missing'); }
+  // ---- configuration: pasted values are cleaned up, and every failure explains itself
+  const storePath = require.resolve(path.join(__dirname, '..', 'lib', 'store'));
+  const withEnv = e => { for (const k of ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_PUBLISHABLE_KEY', 'VERCEL']) delete process.env[k]; Object.assign(process.env, e); delete require.cache[storePath]; return require(storePath); };
+  const throws = fn => { try { fn(); return null; } catch (e) { return e; } };
+  const asyncThrows = async fn => { try { await fn(); return null; } catch (e) { return e; } };
+  let m = withEnv({ SUPABASE_URL: '  "abcd1234.supabase.co/rest/v1/" ', SUPABASE_SECRET_KEY: ' "sb_secret_abc"\n' });
+  ok(m.config().url === 'https://abcd1234.supabase.co' && m.config().secretKey === 'sb_secret_abc', 'config: quotes, spaces, a missing https:// and a /rest/v1 suffix are cleaned up');
+  let err = throws(() => withEnv({ VERCEL: '1' }).getStore());
+  ok(err && err.status === 503 && /SUPABASE_URL and SUPABASE_SECRET_KEY/.test(err.message), 'clear error when Vercel env vars are missing');
+  err = throws(() => withEnv({ VERCEL: '1', SUPABASE_URL: 'https://abcd1234.supabase.co' }).getStore());
+  ok(err && err.status === 503 && /SUPABASE_SECRET_KEY is missing/.test(err.message), 'clear error when only the secret key is missing');
+  err = throws(() => withEnv({ VERCEL: '1', SUPABASE_URL: 'https://abcd1234.supabase.co', SUPABASE_SECRET_KEY: 'sb_secret_ab•••' }).getStore());
+  ok(err && err.status === 503 && /character a key cannot have/.test(err.message) && !/sb_secret_ab/.test(err.message), 'a key copied with masked bullets is explained and never echoed');
+  m = withEnv({ SUPABASE_URL: 'http://localhost:54321', SUPABASE_SECRET_KEY: 'sb_secret_test' });
+  let d = await m.diagnose();
+  ok(d.ok && d.storage === 'supabase' && d.steps.length >= 5 && !JSON.stringify(d).includes('sb_secret_test'), 'diagnose: a healthy setup passes every step and shows no secret');
+  fake.setMode('missing'); d = await m.diagnose();
+  ok(!d.ok && d.steps.some(s => !s.ok && /schema\.sql/.test(s.fix)), 'diagnose: missing tables tell you to run schema.sql');
+  err = await asyncThrows(() => m.getStore().getRoom('AAAAA'));
+  ok(err && err.status === 502 && /schema\.sql/.test(err.message), 'missing tables are reported in plain words');
+  fake.setMode('badkey'); d = await m.diagnose();
+  ok(!d.ok && d.steps.some(s => !s.ok && /secret key/i.test(s.fix)), 'diagnose: a rejected key is named');
+  fake.setMode('paused'); d = await m.diagnose();
+  ok(!d.ok && d.steps.some(s => !s.ok && /paused/.test(s.fix)), 'diagnose: a paused project is named');
+  fake.setMode('');
+  d = await withEnv({ SUPABASE_URL: 'http://127.0.0.1:1', SUPABASE_SECRET_KEY: 'sb_secret_test' }).diagnose();
+  ok(!d.ok && d.steps.some(s => !s.ok && /reach|connect/i.test(s.fix)), 'diagnose: an unreachable project is named');
+  d = await withEnv({ SUPABASE_URL: 'https://abcd1234.supabase.co', SUPABASE_SECRET_KEY: 'sb_publishable_abc' }).diagnose();
+  ok(!d.ok && d.steps.some(s => !s.ok && /publishable/.test(s.fix)), 'diagnose: the publishable key used by mistake is named');
+  d = await withEnv({ VERCEL: '1' }).diagnose();
+  ok(!d.ok && d.steps.some(s => /Environment Variables/.test(s.fix)), 'diagnose: nothing configured on Vercel says what to add');
+  d = await withEnv({}).diagnose();
+  ok(d.ok && d.storage === 'memory', 'diagnose: local development uses in-memory rooms');
+  // the HTTP function itself: failures come back as readable JSON, and diagnose works even when the settings are broken
+  const roomFn = require(path.join(__dirname, '..', 'api', 'room.js'));
+  const web = http.createServer(roomFn); await new Promise(r => web.listen(54322, r));
+  withEnv({ VERCEL: '1', SUPABASE_URL: 'https://abcd1234.supabase.co', SUPABASE_SECRET_KEY: 'sb_secret_ab•' });
+  let r = await fetch('http://127.0.0.1:54322/api/room?action=create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  let j = await r.json();
+  ok(r.status === 503 && /character a key cannot have/.test(j.error), 'HTTP: a bad key returns a readable 503, not "check the logs"');
+  r = await fetch('http://127.0.0.1:54322/api/room?action=diagnose'); j = await r.json();
+  ok(r.status === 200 && j.ok === false && j.steps.some(s => !s.ok), 'HTTP: diagnose answers even when the settings are broken');
+  web.close();
+  withEnv({ VERCEL: '1' });
   fake.server.close();
   console.log(`${pass} passed, ${fails.length} failed`); if (fails.length) { console.log(' - ' + fails.join('\n - ')); process.exit(1); }
 })();

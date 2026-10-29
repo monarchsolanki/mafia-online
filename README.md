@@ -43,6 +43,7 @@ omerta-online/
 ├── icons/                  App icons (192, 512, apple-touch)
 ├── dev-server.js           Local dev server — no accounts needed
 ├── tests/
+│   ├── engine.test.js      Rules tests (no dependencies): node tests/engine.test.js
 │   ├── api.test.js         Server tests (no dependencies): node tests/api.test.js
 │   └── phones.e2e.js       Optional 4-phone browser test
 ├── package.json · vercel.json · .gitignore
@@ -84,6 +85,23 @@ npx vercel --prod               # redeploy with the keys
 ```
 
 If you see "Online play isn't switched on for this site yet", the variables are missing — add them and redeploy.
+Changing an environment variable only takes effect after a redeploy.
+
+### If hosting a room fails
+
+In the God's app tap **Check connection** (it appears next to the error in the online room panel), or open
+`https://<your-site>/api/room?action=diagnose` in any browser. It tests the URL, the key and each table in turn and
+says what to fix — no need to read Vercel logs. Nothing secret is ever shown.
+
+| What it says | What to do |
+| --- | --- |
+| "contains a character a key cannot have" | You copied the masked key (`••••`). Reveal the full key in Supabase and paste it again. |
+| "This is the publishable key" / "rejected the secret key" | `SUPABASE_SECRET_KEY` must be the **secret** key (`sb_secret_…`, or the legacy `service_role` key). |
+| "The database tables are missing" | Run `supabase/schema.sql` in Supabase → SQL Editor. |
+| "Supabase denied access to the tables" | Run `supabase/schema.sql` again — it now also grants the server key access. |
+| "Cannot find a Supabase project" / "paused" | Check `SUPABASE_URL`; free projects pause after a week of inactivity — restore it in the Supabase dashboard. |
+
+Stray quotes, spaces, a missing `https://` or a trailing `/rest/v1` in the variables are cleaned up automatically.
 
 ## Step 3 — Game night
 
@@ -96,8 +114,10 @@ If you see "Online play isn't switched on for this site yet", the variables are 
 5. **Night:** phones show "Night N — close your eyes". The God wakes roles and records actions as before.
 6. **Day:** when the God starts the day, every phone shows the announcement, and each player privately gets
    their night results (hold to read). Dead players are told to stay silent.
-7. **Vote:** when the God opens the vote, nominees appear on every phone. Votes fill the God's tally live.
-   The God can still tap votes for anyone without a phone; a tap overrides that phone until they change it.
+7. **Vote:** in the Day screen the God taps **Let phones vote**. Everyone alive appears on every phone and votes fill
+   the tally live (a revealed Mayor counts as 3 votes while more than 7 players are alive, then 2). Players without a
+   phone get a drop-down under the tally. The God taps **Lock in the result**, or skips the tally and simply taps the
+   player the table chose.
 8. **Game over:** every phone shows the winners and every role.
 
 Someone tapped the wrong name? In the room panel (Players step, Reveal step, or Menu), tap **Reset** next to
@@ -114,7 +134,9 @@ Open `http://localhost:3000` (God) and `http://localhost:3000/play` in another b
 ## Tests
 
 ```bash
-node tests/api.test.js          # 38 checks: every API action, on memory and on a Supabase REST stand-in
+npm test                        # runs the two checks below
+node tests/engine.test.js       # rules: Mayor votes, the one-time Mayor option, Investigator clues
+node tests/api.test.js          # every API action on memory and on a Supabase REST stand-in, plus the connection checker
 npm i puppeteer-core @sparticuz/chromium && node tests/phones.e2e.js   # optional: a full game on 4 browsers
 ```
 

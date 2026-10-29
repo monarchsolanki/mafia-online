@@ -36,3 +36,8 @@ alter table public.rooms enable row level security;
 alter table public.seats enable row level security;
 alter table public.votes enable row level security;
 revoke all on public.rooms, public.seats, public.votes from anon, authenticated;
+
+-- The Vercel function uses the secret (service_role) key. Grant it access explicitly so this also works on
+-- projects where new tables are not opened to the Data API automatically. Safe to run again.
+grant usage on schema public to service_role;
+grant all on public.rooms, public.seats, public.votes to service_role;
