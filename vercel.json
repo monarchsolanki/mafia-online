@@ -1,5 +1,7 @@
 {
-  "cleanUrls": true,
+  "framework": "nextjs",
+  "installCommand": "npm install",
+  "buildCommand": "next build",
   "headers": [
     { "source": "/sw.js", "headers": [
       { "key": "Cache-Control", "value": "no-cache" },

@@ -1,0 +1,16 @@
+{
+  "name": "Omertà — Mafia on your phones",
+  "short_name": "Omertà",
+  "description": "Run a whole game of Mafia from one phone — or put everyone on their own: secret roles, guided nights, rulings by the book.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2b1e40",
+  "theme_color": "#2b1e40",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

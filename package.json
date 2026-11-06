@@ -1,8 +1,30 @@
 {
   "name": "omerta-online",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Omertà Mafia Game Master with players on their own phones",
-  "scripts": { "dev": "node dev-server.js", "test": "node tests/engine.test.js && node tests/api.test.js" },
-  "engines": { "node": ">=18" }
+  "description": "Omertà — run a game of Mafia from one phone, with players on their own phones",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "5.3.0",
+    "@supabase/supabase-js": "2.119.0",
+    "next": "16.4.5",
+    "qrcode": "1.5.4",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5",
+    "vitest": "^5.1.0"
+  },
+  "engines": { "node": ">=20" }
 }
