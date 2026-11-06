@@ -1,0 +1,66 @@
+/* The authored moments: a death drains the colour out of the room from the victim's name, over a heartbeat that
+   flatlines; a quiet night warms up instead; a role develops out of blur when it is revealed. */
+
+.death { position: relative; }
+.death .who { position: relative; display: inline-block; width: fit-content; max-width: 100%; }
+.death .who .strike {
+  position: absolute; left: -0.04em; right: -0.04em; top: 52%; height: 0.07em; min-height: 3px; background: currentColor;
+  transform: scaleX(0); transform-origin: left center;
+}
+.death.drained .who .strike { transform: scaleX(1); transition: transform 0.7s var(--ease) 0.15s; }
+.death .told { opacity: 0; transform: translateY(8px); }
+.death.told-in .told { opacity: 1; transform: none; transition: opacity 0.7s var(--ease), transform 0.7s var(--ease); }
+.death .told + .told { transition-delay: 0.18s; }
+
+.flatline { width: 100%; height: 72px; display: block; margin: 6px 0 2px; overflow: visible; }
+.flatline path { fill: none; stroke: var(--ink); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0.85; }
+.flatline.go path { animation: draw-line 2.2s cubic-bezier(0.4, 0.1, 0.5, 1) forwards; }
+@keyframes draw-line { to { stroke-dashoffset: 0; } }
+
+/* The drain: a grey lens that opens from the victim's name until it covers the screen. */
+.drain {
+  position: fixed; inset: 0; z-index: 2; pointer-events: none;
+  -webkit-backdrop-filter: grayscale(1) brightness(0.9); backdrop-filter: grayscale(1) brightness(0.9);
+  clip-path: circle(0 at var(--dx, 50%) var(--dy, 40%));
+}
+.drain.go { clip-path: circle(150vmax at var(--dx, 50%) var(--dy, 40%)); transition: clip-path 1.5s cubic-bezier(0.65, 0, 0.35, 1); }
+@supports not ((backdrop-filter: grayscale(1)) or (-webkit-backdrop-filter: grayscale(1))) {
+  .drain { background: rgba(48, 48, 52, 0.72); }
+}
+.death-stage > .stage-body, .death-stage > .stage-foot { position: relative; z-index: 3; }
+.death-stage.drained-all { transition: background-color 0.6s; }
+
+/* A night without a death: the light comes up instead. */
+.sunrise { position: fixed; left: 50%; bottom: -60vmax; width: 140vmax; height: 120vmax; transform: translateX(-50%) scale(0.6); border-radius: 50%; pointer-events: none; z-index: 0;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--accent) 55%, transparent), transparent); opacity: 0; }
+.sunrise.go { opacity: 0.9; transform: translateX(-50%) scale(1); transition: opacity 2.4s var(--ease), transform 2.8s var(--ease); }
+
+/* The game ends: the winner's light floods out from the middle. */
+.flood { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: var(--ground); clip-path: circle(0 at 50% 45%); }
+.flood.go { clip-path: circle(150vmax at 50% 45%); transition: clip-path 1.6s cubic-bezier(0.65, 0, 0.35, 1); }
+
+/* The role card. */
+.rolecard { display: flex; flex-direction: column; gap: 14px; }
+.rolecard .rname { font-size: clamp(3.2rem, 15vw, 6.5rem); font-weight: 780; font-stretch: 76%; letter-spacing: -0.035em; line-height: 0.86; overflow-wrap: anywhere; }
+.rolecard .rname.develop { animation-duration: 1.3s; }
+.rolecard dl { margin: 6px 0 0; display: grid; gap: 14px; }
+.rolecard dt { font-size: 0.8125rem; font-weight: 650; color: var(--ink-2); letter-spacing: 0.02em; }
+.rolecard dd { margin: 3px 0 0; font-size: 1rem; }
+.rolecard ul { margin: 0; padding-left: 18px; }
+.countdown { font-size: 0.875rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+/* Phase cards (night falls, day breaks). */
+.phase-card .mega { margin-bottom: 4px; }
+.phase-card .line { font-size: 1.25rem; color: var(--ink-2); max-width: 24ch; text-wrap: balance; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Keep the meaning, drop the movement: the drain and the line appear without sweeping or drawing. */
+  .drain, .drain.go { clip-path: none; opacity: 0; transition: opacity 0.6s linear !important; }
+  .drain.go { opacity: 1; }
+  .flatline path, .flatline.go path { animation: none !important; stroke-dashoffset: 0; }
+  .death .told, .death.told-in .told { transform: none; transition: opacity 0.4s linear !important; }
+  .death.drained .who .strike { transform: scaleX(1); }
+  .sunrise.go { transform: translateX(-50%) scale(1); transition: opacity 0.6s linear !important; }
+  .flood, .flood.go { clip-path: none; }
+  .develop, .phase-title, .rolecard .rname.develop { animation: fade 0.5s linear both !important; }
+}

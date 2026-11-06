@@ -1,58 +1,64 @@
-# Omertà — Mafia Game Master, with players on their own phones
+# Omertà — Mafia, run from one phone or played on everyone's
 
-The Game Master (God) runs the game on one phone, exactly as before. Every other player opens the site
-on their own phone, joins the room, and privately sees **their own role**, **their own night results**,
-the **morning announcement**, and **votes** from there. Nobody passes the God's phone around.
+The Game Master runs the game on one phone: secret roles, a guided night, rulings by the book, and an
+announcement scene for every death. Players can also join on their own phones to see **their own role**,
+**their own night results**, the **morning announcement** and **the vote** — and, if the Game Master allows it,
+make their **night choices** there too, with a **silent chat** for the Mafia.
+
+Hosts can sign in (username and password, no email) so saved setups, player groups, custom roles and games
+follow them to any device.
 
 ## How it fits together
 
 ```
-God's phone (index.html)  ──sync after every action──▶  Vercel function /api/room  ──▶  Supabase (Postgres)
-     ▲  rules engine runs here                             stores each player's slice      rooms · seats · votes
-     │  votes flow back in                                 hands each phone ONLY its own
+Game Master's phone (/)  ──sync after every action──▶  /api/room  ──▶  Supabase (Postgres)
+   ▲  rules engine runs here                             stores each player's slice     rooms · seats · votes
+   │  votes and night choices flow back in               hands each phone ONLY its own  night_actions · chat_messages
 Player phones (/play)  ◀──"something changed" ping (no secrets) via Supabase Realtime──
+
+Host account (/api/auth, /api/library)  ──▶  hosts · host_sessions · host_items
 ```
 
-- The God's phone is the brain: it computes every player's private slice and uploads it.
-- Each phone gets a secret token when its player taps their name. The server only ever returns the
-  slice that matches that token, so a player cannot read anyone else's role, even with developer tools.
-- Who died stays hidden on phones until the God starts the day. Night results arrive at the same moment.
+- The Game Master's phone is the brain: it computes every player's private slice and uploads it.
+- Each phone gets a secret token when its player taps their name. The server only ever returns the slice that
+  matches that token, so a player cannot read anyone else's role, even with developer tools.
+- Night choices sent from phones are checked twice: by the server against the options the Game Master's phone
+  offered that player, and again by the rules engine on the Game Master's phone before they count.
+- The Mafia chat is only readable by living members of that faction (and, read-only, by the Game Master).
+- Who died stays hidden on phones until the Game Master starts the day. Night results arrive at the same moment.
 - If live updates can't connect, phones fall back to checking every few seconds. The game still works.
 
 ## Project structure
 
 ```
-omerta-online/
-├── index.html              God's app — shell HTML only, loads external CSS/JS
-├── play.html               Player app — shell HTML only, loads external CSS/JS
-├── css/
-│   ├── shared.css          Design system shared by both apps
-│   └── player.css          Player-only layout styles
-├── js/
-│   ├── engine.js           Rules engine — pure game logic, no DOM (browser + Node)
-│   ├── app.js              God app — state, views, handlers, online room management
-│   └── player.js           Player phone app — join, role card, vote, reveal
-├── api/room.js             The one Vercel function: /api/room?action=...
-├── lib/
-│   ├── logic.js            Room logic: create, sync, claim, view, vote, reset, close
-│   └── store.js            Supabase REST storage (production) · in-memory storage (local)
-├── supabase/schema.sql     Run once in Supabase: tables, locked down
-├── vendor/                 supabase.js (live updates) · qrcode.js (join QR) — bundled, no CDN
-├── sw.js                   Service worker — offline shell caching
-├── manifest.webmanifest    PWA manifest
-├── icons/                  App icons (192, 512, apple-touch)
-├── dev-server.js           Local dev server — no accounts needed
-├── tests/
-│   ├── engine.test.js      Rules tests (no dependencies): node tests/engine.test.js
-│   ├── api.test.js         Server tests (no dependencies): node tests/api.test.js
-│   └── phones.e2e.js       Optional 4-phone browser test
-├── package.json · vercel.json · .gitignore
+app/                        Next.js App Router
+├── page.tsx                The Game Master's app (client only)
+├── play/page.tsx           The player's phone app (client only)
+├── api/room/route.ts       Online rooms: create, sync, claim, view, vote, act (night choices), chat, diagnose
+├── api/auth/route.ts       Host accounts: sign up, log in, recover with the recovery code, log out
+├── api/library/route.ts    A signed-in host's saved setups, groups, custom roles and games
+├── globals.css · fx.css    The “Afterglow” design system and the death / win animations
+└── layout.tsx              Fonts (self-hosted Bricolage Grotesque), metadata, theme colour
+components/
+├── gm/                     Game Master screens: Home, Setup, Game (night · dawn · day · end), Players, Roles, Rules, sheets
+├── player/PlayerApp.tsx    Player phone: join, role card, night choices, Mafia chat, announcements, vote, results
+├── fx/                     DeathScene (heartbeat, flatline, colour drain) · RoleCard
+└── ui/                     Icon · Hold (press-and-hold to reveal)
+lib/
+├── engine/engine.js        Rules engine — pure game logic, unchanged rules (+ engine.d.ts types)
+├── client/                 Game Master state, actions, online rooms, cloud sync, sound, shared phrases
+└── server/                 Room logic, host auth (scrypt), library, Supabase REST storage · in-memory storage
+supabase/schema.sql         Run in Supabase: every table, locked down
+public/                     Service worker, manifest, icons
+tests/                      Vitest: rules engine, every API action, phone night choices end to end
 ```
 
 ## Step 1 — Supabase (free), 5 minutes
 
 1. Create an account at supabase.com and click **New project**. Pick any name and a region close to you (e.g. Mumbai).
 2. Open **SQL Editor → New query**, paste everything from `supabase/schema.sql`, and click **Run**.
+   **Already set up from an earlier version? Run it again** — it adds the tables for host accounts, phone night
+   choices and the Mafia chat, and leaves existing data alone.
 3. Open the **Connect** button (or **Project Settings → API Keys**) and copy three values:
    - **Project URL** — looks like `https://abcd1234.supabase.co`
    - **Publishable key** — starts with `sb_publishable_` (older projects: the `anon` key)
@@ -62,34 +68,24 @@ omerta-online/
 
 ## Step 2 — Vercel
 
-**Option A: GitHub (recommended)**
-1. Create a new GitHub repository and push this folder to it.
-2. On vercel.com: **Add New → Project →** import the repository. Framework preset: **Other**. No build command.
-3. Before clicking Deploy, open **Environment Variables** and add:
+The repository is a Next.js app; `vercel.json` tells Vercel so. If the project was created for the old static
+version, open **Project → Settings → Build and Deployment** and make sure the Framework Preset is **Next.js** and
+the Build Command, Output Directory and Install Command have **no overrides**.
 
-   | Name | Value |
-   | --- | --- |
-   | `SUPABASE_URL` | your Project URL |
-   | `SUPABASE_SECRET_KEY` | your secret key |
-   | `SUPABASE_PUBLISHABLE_KEY` | your publishable key |
+Environment variables (**Settings → Environment Variables**), unchanged from before:
 
-4. Click **Deploy**. Your site is at `https://<project>.vercel.app`.
+| Name | Value |
+| --- | --- |
+| `SUPABASE_URL` | your Project URL |
+| `SUPABASE_SECRET_KEY` | your secret key |
+| `SUPABASE_PUBLISHABLE_KEY` | your publishable key |
 
-**Option B: Vercel CLI**
-```bash
-npx vercel                      # first deploy, answer the prompts
-npx vercel env add SUPABASE_URL
-npx vercel env add SUPABASE_SECRET_KEY
-npx vercel env add SUPABASE_PUBLISHABLE_KEY
-npx vercel --prod               # redeploy with the keys
-```
+Push to the main branch (or import the repository on vercel.com) and Vercel builds and deploys it. Changing an
+environment variable only takes effect after a redeploy.
 
-If you see "Online play isn't switched on for this site yet", the variables are missing — add them and redeploy.
-Changing an environment variable only takes effect after a redeploy.
+### If hosting a room or signing in fails
 
-### If hosting a room fails
-
-In the God's app tap **Check connection** (it appears next to the error in the online room panel), or open
+In the Game Master's app tap **Check connection** (it appears next to the error in the online room panel), or open
 `https://<your-site>/api/room?action=diagnose` in any browser. It tests the URL, the key and each table in turn and
 says what to fix — no need to read Vercel logs. Nothing secret is ever shown.
 
@@ -97,50 +93,57 @@ says what to fix — no need to read Vercel logs. Nothing secret is ever shown.
 | --- | --- |
 | "contains a character a key cannot have" | You copied the masked key (`••••`). Reveal the full key in Supabase and paste it again. |
 | "This is the publishable key" / "rejected the secret key" | `SUPABASE_SECRET_KEY` must be the **secret** key (`sb_secret_…`, or the legacy `service_role` key). |
-| "The database tables are missing" | Run `supabase/schema.sql` in Supabase → SQL Editor. |
-| "Supabase denied access to the tables" | Run `supabase/schema.sql` again — it now also grants the server key access. |
+| "The database tables are missing" (e.g. `hosts`, `night_actions`) | Run `supabase/schema.sql` in Supabase → SQL Editor. |
+| "Supabase denied access to the tables" | Run `supabase/schema.sql` again — it also grants the server key access. |
 | "Cannot find a Supabase project" / "paused" | Check `SUPABASE_URL`; free projects pause after a week of inactivity — restore it in the Supabase dashboard. |
-
-Stray quotes, spaces, a missing `https://` or a trailing `/rest/v1` in the variables are cleaned up automatically.
 
 ## Step 3 — Game night
 
-1. **God:** open the site, set the number of players, add names (or rename the seats later).
-2. **God:** in the Players step, tap **Host an online room**. A QR code and a 5-letter room code appear.
-3. **Players:** scan the QR (or open `<your-site>/play` and type the code), then tap **their own name** and confirm.
-   The God sees each one turn to "Joined".
-4. **God:** choose roles and deal as usual. The Reveal step now shows "Roles are on their phones" and how many
-   players have looked. Players hold a button to see their card — it hides itself after 20 seconds.
-5. **Night:** phones show "Night N — close your eyes". The God wakes roles and records actions as before.
-6. **Day:** when the God starts the day, every phone shows the announcement, and each player privately gets
-   their night results (hold to read). Dead players are told to stay silent.
-7. **Vote:** in the Day screen the God taps **Let phones vote**. Everyone alive appears on every phone and votes fill
-   the tally live (a revealed Mayor counts as 3 votes while more than 7 players are alive, then 2). Players without a
-   phone get a drop-down under the tally. The God taps **Lock in the result**, or skips the tally and simply taps the
-   player the table chose.
+1. **Game Master:** open the site, tap **New game**, add names, choose roles. Signed in? Setups, groups and the
+   game itself are saved to your account as you go.
+2. **Game Master:** tap **Host an online room** (in the Players step, the menu, or Rules). A QR code and a
+   5-letter room code appear.
+3. **Players:** scan the QR, or open the site and type the code under **Join a game**, then tap **their own name**.
+4. **Night choices on phones** (in the room panel, under *On their phones*):
+   - **Off** — you call every role and tap their choice, as always.
+   - **Mafia kill only** — the Mafia pick their victim (and who carries it out) on their phones.
+   - **Every role** — each role picks on their own phone; your console shows who has chosen and who you're waiting on.
+   Choices fill in your night console as they arrive; you can still change any of them before resolving.
+5. **Silent Mafia chat:** when two or more of the Mafia (or Vampires) are alive, they can message each other on their
+   phones — **at night** (default), **day and night**, or **off**. You can read along from the room panel.
+6. **Day:** when you start the day, every phone plays the announcement and each player privately gets their
+   night results (hold to read). Executions play on every phone too.
+7. **Vote:** tap **Let phones vote** on the Day screen, or skip the tally and simply tap the player the table chose.
 8. **Game over:** every phone shows the winners and every role.
 
-Someone tapped the wrong name? In the room panel (Players step, Reveal step, or Menu), tap **Reset** next to
-that name; their phone is sent back to the join screen. Closing the room never affects the game itself.
+Someone tapped the wrong name? In the room panel tap **Reset** next to that name; their phone goes back to the
+join screen. Closing the room never affects the game itself.
 
-## Try it locally first (no accounts needed)
+## Host accounts
+
+Create an account from the home screen with a username and password. You get a **recovery code** once — keep
+it somewhere safe; it is the only way back in if you forget the password (there is no email). Passwords and
+recovery codes are stored only as scrypt hashes, sessions as SHA-256 hashes in an HttpOnly cookie, and repeated
+wrong passwords lock the account for 15 minutes.
+
+## Run it locally (no accounts needed)
 
 ```bash
-node dev-server.js
+npm install
+npm run dev                     # http://localhost:3000 — Game Master; /play — players
 ```
-Open `http://localhost:3000` (God) and `http://localhost:3000/play` in another browser or a private window
-(players). Locally, rooms live in memory and phones check for updates every 3 seconds.
+Without Supabase variables, rooms and accounts live in memory and phones check for updates every 3 seconds.
 
 ## Tests
 
 ```bash
-npm test                        # runs the two checks below
-node tests/engine.test.js       # rules: Mayor votes, the one-time Mayor option, Investigator clues
-node tests/api.test.js          # every API action on memory and on a Supabase REST stand-in, plus the connection checker
-npm i puppeteer-core @sparticuz/chromium && node tests/phones.e2e.js   # optional: a full game on 4 browsers
+npm test                        # rules engine, every API action (memory + a Supabase REST stand-in), phone night choices
+npm run typecheck
+npm run build
 ```
 
 ## Updating
 
-Change files, bump `VERSION` in `sw.js` (e.g. `omerta-online-v2`), and push. Games in progress are saved on the
-God's phone, so a redeploy never loses a game; phones reconnect by themselves.
+Push to the main branch. Built files carry content hashes, so phones pick up a new version on their next visit.
+Games in progress are saved on the Game Master's phone (and in their account when signed in), so a redeploy never
+loses a game; phones reconnect by themselves.
