@@ -93,7 +93,7 @@ h1, h2, h3, h4, p { margin: 0; }
 
 /* ---------- layout ---------- */
 .shell { min-height: 100dvh; display: flex; flex-direction: column; }
-.page { width: 100%; max-width: 640px; margin: 0 auto; padding: 8px 20px calc(var(--tab-h) + var(--safe-b) + 112px); flex: 1; }
+.page { width: 100%; max-width: 640px; margin: 0 auto; padding: 8px 20px calc(var(--tab-h) + var(--safe-b) + 136px); flex: 1; }
 .page.no-tabs { padding-bottom: calc(var(--safe-b) + 112px); }
 .stack { display: flex; flex-direction: column; gap: 12px; }
 .stack-lg { display: flex; flex-direction: column; gap: 28px; }
@@ -132,7 +132,7 @@ h1, h2, h3, h4, p { margin: 0; }
   .tabs { top: 0; bottom: 0; right: auto; width: 96px; grid-template-columns: 1fr; grid-auto-rows: 64px; align-content: start; padding: calc(var(--safe-t) + 76px) 10px 10px; border-top: 0; border-right: 1px solid color-mix(in oklab, var(--ink) 11%, transparent); }
   .tabs button { height: 60px; }
   .with-rail { padding-left: 96px; }
-  .page { padding-bottom: 140px; }
+  .page { padding-bottom: 160px; }
 }
 
 /* ---------- icons ---------- */
@@ -262,6 +262,8 @@ select option, select optgroup { background: #1b1b22; color: #f2f2f5; }
   pointer-events: none;
 }
 .dock > * { pointer-events: auto; max-width: 600px; margin: 0 auto; }
+.dock > .btn { display: flex; } /* a lone full-width button: inline-flex would ignore the auto margins and sit left */
+@media (max-width: 440px) { .dock .hide-sm { display: none; } .dock .btn.back-sm { padding: 0; width: var(--h); flex: none; } }
 .dock .row { justify-content: center; }
 .no-tabs .dock, .dock.flush { bottom: var(--safe-b); }
 @media (min-width: 1024px) { .dock { bottom: 0; left: 96px; } }
@@ -311,9 +313,11 @@ select option, select optgroup { background: #1b1b22; color: #f2f2f5; }
 @keyframes settle { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes develop { from { filter: blur(14px); opacity: 0; letter-spacing: 0.06em; } to { filter: blur(0); opacity: 1; } }
 @keyframes glow-out { 0% { text-shadow: 0 0 36px color-mix(in oklab, var(--accent) 80%, transparent); } 100% { text-shadow: 0 0 0 transparent; } }
-.settle { animation: settle 0.6s var(--ease) both; }
-.develop { animation: develop 1.1s var(--ease) both; }
-.phase-title { animation: develop 1.2s var(--ease) both, glow-out 2.4s var(--ease) 0.4s both; }
+/* `backwards`, not `both`: once finished, an animation must not keep a transform or filter on the element, or every
+   `position: fixed` child (the dock, sheets) would be pinned to it instead of the screen. */
+.settle { animation: settle 0.6s var(--ease) backwards; }
+.develop { animation: develop 1.1s var(--ease) backwards; }
+.phase-title { animation: develop 1.2s var(--ease) backwards, glow-out 2.4s var(--ease) 0.4s backwards; }
 
 @media (prefers-reduced-motion: reduce) {
   :root { --act-time: 0.01s; }

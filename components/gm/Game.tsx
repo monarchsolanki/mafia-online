@@ -5,6 +5,7 @@ import { A, emit, undo, P, role, plural, fmtDur, teamName } from "@/lib/client/s
 import { Online, phoneMode } from "@/lib/client/online";
 import * as act from "@/lib/client/actions";
 import { Icon } from "@/components/ui/Icon";
+import { Dock } from "@/components/ui/Dock";
 import { PlayerTile, StatsStrip } from "./Players";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -150,7 +151,7 @@ function StepPanel({ st, idx, total }: { st: NightStep; idx: number; total: numb
       <button className="btn ghost sm" onClick={() => act.nightStep(idx + 1)}>Next<Icon name="chev" size="sm" /></button>
     </div>
   );
-  const dock = (primary: React.ReactNode, secondary: React.ReactNode) => <div className="dock"><div className="row nowrap">{secondary}{primary}</div></div>;
+  const dock = (primary: React.ReactNode, secondary: React.ReactNode) => <Dock><div className="row nowrap">{secondary}{primary}</div></Dock>;
   if (st.type === "bluff") {
     return (<>
       <h2 className="display">{st.title}, wake up.</h2>
@@ -231,7 +232,7 @@ function NightSummary({ steps }: { steps: NightStep[] }) {
     <p className="lead" style={{ marginTop: 10 }}>The engine applies jail, transports, control, roleblocks, protection, attacks and investigations in priority order.</p>
     {s.actions.length ? <ul style={{ margin: "18px 0 0", paddingLeft: 20 }}>{s.actions.map(a => { const forfeit = !a.key.match(/^(mafia|vampire)$/) && s.actions.some(f => (f.key === "mafia" || f.key === "vampire") && f.actor === a.actor); return <li key={a.key} style={{ margin: "6px 0" }}>{act.actionText(a)}{forfeit && <span className="chip blood" style={{ marginLeft: 6, height: 22 }}>won’t happen — carrying the kill</span>}</li>; })}</ul> : <p className="muted" style={{ marginTop: 18 }}>No actions recorded — a quiet night.</p>}
     {missing.length > 0 && <p className="note warn" style={{ marginTop: 16 }}><Icon name="alert" size="sm" /><span>Not yet called: {missing.map(st => st.title).join(", ")}. They count as no action.</span></p>}
-    <div className="dock"><div className="row nowrap"><button className="btn" onClick={act.restartNight}><Icon name="refresh" size="sm" />Restart</button><button className="btn primary grow" onClick={act.resolveAsk}><Icon name="moon" />Resolve Night {s.night}</button></div></div>
+    <Dock><div className="row nowrap"><button className="btn" onClick={act.restartNight}><Icon name="refresh" size="sm" />Restart</button><button className="btn primary grow" onClick={act.resolveAsk}><Icon name="moon" />Resolve Night {s.night}</button></div></Dock>
   </>);
 }
 
@@ -273,7 +274,7 @@ function Dawn() {
       <div className="targets compact" role="group" aria-label="Announcement format" style={{ marginTop: 12 }}>{[["name", "Names only"], ["role", "Names and roles"], ["cause", "Names and causes"], ["full", "Roles and causes"], ["custom", "Write my own"]].map(([k, l]) => <button key={k} className="tgt" onClick={() => { A.ui.annFormat = k; emit(); }} aria-pressed={fmt === k}><span className="nm">{l}</span></button>)}</div>
       {fmt === "custom" && <label className="field" style={{ marginTop: 12 }}><span>Your announcement</span><textarea value={A.ui.annCustom} onChange={e => { A.ui.annCustom = e.target.value; emit(); }} placeholder="The town wakes to find…" /></label>}
     </section>
-    <div className="dock"><button className="btn block primary" onClick={act.startDay} disabled={!!s.pending.length}><Icon name="sun" />Announce and start Day {N}</button>{s.pending.length > 0 && <p className="tiny muted" style={{ textAlign: "center", marginTop: 6 }}>Resolve the prompt above first.</p>}</div>
+    <Dock><button className="btn block primary" onClick={act.startDay} disabled={!!s.pending.length}><Icon name="sun" />Announce and start Day {N}</button>{s.pending.length > 0 && <p className="tiny muted" style={{ textAlign: "center", marginTop: 6 }}>Resolve the prompt above first.</p>}</Dock>
   </>);
 }
 
@@ -376,7 +377,7 @@ function Day() {
     <Execution />
     <DayAbilities />
     <div className="row" style={{ marginTop: 26 }}><button className="btn ghost sm" onClick={act.restartDay}><Icon name="restart" size="sm" />Restart Day {s.day}</button></div>
-    {s.dayState && s.dayState.done && !s.winPrompt && <div className="dock"><button className="btn block primary" onClick={act.endDay} disabled={!!s.pending.length}><Icon name="moon" />Begin Night {s.day + 1}</button>{s.pending.length > 0 && <p className="tiny muted" style={{ textAlign: "center", marginTop: 6 }}>Resolve the prompt above first.</p>}</div>}
+    {s.dayState && s.dayState.done && !s.winPrompt && <Dock><button className="btn block primary" onClick={act.endDay} disabled={!!s.pending.length}><Icon name="moon" />Begin Night {s.day + 1}</button>{s.pending.length > 0 && <p className="tiny muted" style={{ textAlign: "center", marginTop: 6 }}>Resolve the prompt above first.</p>}</Dock>}
   </>);
 }
 
