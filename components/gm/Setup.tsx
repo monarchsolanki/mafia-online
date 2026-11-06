@@ -6,6 +6,7 @@ import * as act from "@/lib/client/actions";
 import { Online } from "@/lib/client/online";
 import { Cloud } from "@/lib/client/cloud";
 import { Icon } from "@/components/ui/Icon";
+import { Dock as DockBar } from "@/components/ui/Dock";
 import { ConfigPanel } from "./Settings";
 import { OnlinePanel } from "./OnlinePanel";
 
@@ -42,15 +43,15 @@ function Progress() {
 function Dock({ left, children }: { left?: React.ReactNode; children: React.ReactNode }) {
   const st = A.ui.setupStep;
   return (
-    <div className="dock">
+    <DockBar>
       <div>
         {left && <p className="small muted" style={{ textAlign: "center", marginBottom: 8 }}>{left}</p>}
         <div className="row nowrap">
-          <button className="btn" onClick={() => (st === 0 ? act.goHome() : act.setStep(st - 1))} aria-label={st === 0 ? "Home" : "Back"}><Icon name="back" size="sm" />{st === 0 ? "Home" : "Back"}</button>
+          <button className="btn back-sm" onClick={() => (st === 0 ? act.goHome() : act.setStep(st - 1))} aria-label={st === 0 ? "Home" : "Back"}><Icon name="back" size="sm" /><span className="hide-sm">{st === 0 ? "Home" : "Back"}</span></button>
           {children}
         </div>
       </div>
-    </div>
+    </DockBar>
   );
 }
 
