@@ -59,7 +59,7 @@ export interface Death { id: string; ph: string; cause: string; killers: string[
 export interface Message { to: string; text: string; tag: string; about?: string; pointed?: string; roles?: { id: string; name: string }[]; subject?: string }
 export interface Report {
   night: number; deaths: Death[]; saves: { target: string; by: string | null; how: string; attacker?: string; cause: string }[];
-  messages: Message[]; lines: string[]; publicNotes: string[]; visits: { from: string; to: string; kind: string }[]; cancelled: { actor: string; kind: string; why: string }[];
+  messages: Message[]; lines: string[]; publicNotes: string[]; visits: { from: string; to: string; kind: string }[]; cancelled: { actor: string; kind: string; why: string }[]; why?: string[];
 }
 export interface Action { key: string; actor: string; ab: string; targets: string[]; opts: Record<string, any>; at?: number }
 export interface WinCheck { status: "ongoing" | "over" | "showdown"; faction?: string; reason?: string; winners?: { id: string; why: string }[]; pending?: string[] }
@@ -132,7 +132,9 @@ declare const Engine: {
   kindOf(ab: Ability): { target: string; verb: string; info?: boolean; day?: boolean };
   rolesInClue(s: Game, clue: string): string[];
   rolesInGame(s: Game): Set<string>;
-  clueRoles(s: Game, clue: string, key: string): { id: string; name: string }[];
+  clueRoles(s: Game, shownId: string, key: string, hide?: string | null): { id: string; name: string }[];
+  clueShown(s: Game, p: Player, ctx: { disguised: Set<string>; framed: Set<string> }, key: string): { id: string; hide: string | null };
+  evilRole(r: Role): boolean;
   newGame(): Game;
   addPlayer(s: Game, name: string): Player;
   getP(s: Game, id: string): Player | undefined;

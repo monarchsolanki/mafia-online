@@ -63,44 +63,115 @@ const everyone = (s: any) => s.players.filter(p => p.alive).map(p => p.id);
   ok(!s.dayState.open && !s.dayState.done && Object.keys(s.dayState.votes).length === 0, 'cancelVote: closes the vote without ending the day');
 }
 
-/* ---------- Investigator: only roles in this game ---------- */
+/* ---------- Investigator: four roles from this game, never more than one evil ---------- */
 function nightOne(roles: string[]) {
   const s = E.newGame(); roles.forEach((r, i) => E.addPlayer(s, 'P' + i));
   s.players.forEach((p, i) => E.setRole(s, p, roles[i]));
   s.initialRoles = s.players.map(p => ({ id: p.id, roleId: p.roleId, team: p.team }));
   E.startGame(s); return s;
 }
+const evilCount = (s, list) => list.filter(r => E.evilRole(E.getRole(s, r.id))).length;
+const invCheck = (s, inv, target) => { const act = { key: inv.id, actor: inv.id, ab: 'inv', targets: [target.id], opts: {} }; return { act, pv: E.previewResult(s, act) }; };
 {
   const roles = ['investigator', 'villager', 'villager', 'doctor', 'police', 'mayor', 'godfather', 'mafia', 'jester'];
   const s = nightOne(roles); const inv = s.players[0]; const inGame = new Set(roles.map(r => E.getRole(s, r).name));
   for (let t = 1; t < s.players.length; t++) {
-    const target = s.players[t]; const act = { key: inv.id, actor: inv.id, ab: 'inv', targets: [target.id], opts: {} };
-    const pv = E.previewResult(s, act);
-    ok(pv.roles && pv.roles.length >= 3, `investigator: ${target.roleId} gets 3+ names`);
+    const target = s.players[t]; const { act, pv } = invCheck(s, inv, target);
+    ok(pv.roles && pv.roles.length === 4, `investigator: ${target.roleId} gets exactly 4 roles`);
     ok(pv.roles && pv.roles.every(r => inGame.has(r.name)), `investigator: ${target.roleId} gets only roles that are in the game`);
     ok(pv.roles && pv.roles.some(r => r.id === target.roleId), `investigator: the true role of ${target.roleId} is on the list`);
+    const evilTarget = E.evilRole(E.getRole(s, target.roleId));
+    ok(pv.roles && (evilTarget ? evilCount(s, pv.roles) === 1 : evilCount(s, pv.roles) <= 1), `investigator: never more than one evil role for ${target.roleId}`);
+    if (evilTarget) ok(pv.roles.filter(r => E.evilRole(E.getRole(s, r.id))).every(r => r.id === target.roleId), `investigator: an evil ${target.roleId} is the only evil role listed`);
     E.setAction(s, act); const res = E.resolveNight(s).reports[1].messages.find(m => m.to === inv.id && m.tag === 'result');
     ok(res && JSON.stringify(res.roles) === JSON.stringify(pv.roles), `investigator: the real result matches the preview for ${target.roleId}`); E.clearAction(s, inv.id);
   }
-  const pvDoc = E.previewResult(s, { key: inv.id, actor: inv.id, ab: 'inv', targets: [s.players[3].id], opts: {} });
-  ok(!pvDoc.roles.some(r => ['Priest', 'Evil Guesser', 'Good Guesser', 'Werewolf'].includes(r.name)), 'investigator: no out-of-game roles even when the group has a single match');
+  // many different nights and investigators: the rule holds every time, and the decoys vary
+  const seen = new Set(), decoys = new Set();
+  for (let n = 1; n <= 40; n++) { s.night = n; const { pv } = invCheck(s, inv, s.players[1]); ok(pv.roles.length === 4 && evilCount(s, pv.roles) <= 1, `investigator: night ${n} keeps 4 roles with at most one evil`); seen.add(pv.roles.map(r => r.id).join()); decoys.add(evilCount(s, pv.roles)); }
+  ok(seen.size > 1, 'investigator: the decoys change from night to night');
+  ok(decoys.has(0) && decoys.has(1), 'investigator: a good target sometimes gets an evil decoy and sometimes not');
+  for (let n = 1; n <= 40; n++) { s.night = n; const { pv } = invCheck(s, inv, s.players[6]); ok(pv.roles.some(r => r.id === 'godfather') && evilCount(s, pv.roles) === 1, `investigator: an evil target always shows exactly its own evil role (night ${n})`); }
+  s.night = 1;
 
-  const d = nightOne(['drunk', 'villager', 'villager', 'doctor', 'police', 'mayor', 'godfather', 'mafia', 'jester']); d.players[0].meta.fake = 'investigator';
-  const ab = E.nightAbilities(d, d.players[0]).find(a => a.kind === 'clue');
+  // Mafia target in a game with two evil roles: the other evil role never appears beside it
+  const g = nightOne(['investigator', 'villager', 'doctor', 'police', 'godfather', 'mafia', 'jester']);
+  for (let n = 1; n <= 20; n++) { g.night = n; const { pv } = invCheck(g, g.players[0], g.players[4]); ok(pv.roles.length === 4 && pv.roles.some(r => r.id === 'godfather') && !pv.roles.some(r => r.id === 'mafia'), `investigator: Godfather listed with no second evil role (night ${n})`); }
+
+  const small = nightOne(['investigator', 'villager', 'villager', 'villager', 'mafia']);
+  const pv2 = invCheck(small, small.players[0], small.players[1]).pv;
+  ok(pv2.roles.length >= 2 && pv2.roles.length <= 3 && pv2.roles.some(r => r.name === 'Villager') && pv2.roles.some(r => r.name === 'Investigator') && pv2.roles.every(r => ['Investigator', 'Villager', 'Mafia'].includes(r.name)), 'investigator: a small game lists every good in-game role it can, Mafia only as a decoy');
+
+  // a Disguiser makes a Mafia member read as a good role; a Framer makes a Town member read as an evil one
+  const d = nightOne(['investigator', 'villager', 'doctor', 'police', 'godfather', 'disguiser', 'framer', 'jester']);
+  const dis = E.nightAbilities(d, d.players[5])[0], fra = E.nightAbilities(d, d.players[6])[0];
+  E.setAction(d, { key: d.players[5].id, actor: d.players[5].id, ab: dis.id, targets: [d.players[4].id], opts: {} });
+  const pvDis = invCheck(d, d.players[0], d.players[4]).pv;
+  ok(pvDis.roles.length === 4 && pvDis.roles.some(r => r.id === 'villager') && !pvDis.roles.some(r => r.id === 'godfather') && evilCount(d, pvDis.roles) <= 1, 'investigator: a disguised Godfather reads as a Villager, never listed as Godfather');
+  E.clearAction(d, d.players[5].id);
+  E.setAction(d, { key: d.players[6].id, actor: d.players[6].id, ab: fra.id, targets: [d.players[2].id], opts: {} });
+  const pvFra = invCheck(d, d.players[0], d.players[2]).pv;
+  ok(pvFra.roles.length === 4 && !pvFra.roles.some(r => r.id === 'doctor') && evilCount(d, pvFra.roles) === 1, 'investigator: a framed Doctor reads as one evil role among good ones, without Doctor');
+
+  const dr = nightOne(['drunk', 'villager', 'villager', 'doctor', 'police', 'mayor', 'godfather', 'mafia', 'jester']); dr.players[0].meta.fake = 'investigator';
+  const ab = E.nightAbilities(dr, dr.players[0]).find(a => a.kind === 'clue');
   ok(!!ab, 'drunk: has a fake investigator ability');
   if (ab) {
-    E.setAction(d, { key: d.players[0].id, actor: d.players[0].id, ab: ab.id, targets: [d.players[3].id], opts: {} });
+    E.setAction(dr, { key: dr.players[0].id, actor: dr.players[0].id, ab: ab.id, targets: [dr.players[3].id], opts: {} });
     const names = new Set(['Drunk', 'Villager', 'Doctor', 'Police', 'Mayor', 'Godfather', 'Mafia', 'Jester']);
-    const m1 = E.resolveNight(d).reports[1].messages.find(m => m.to === d.players[0].id && m.tag === 'result');
-    const m2 = E.resolveNight(d).reports[1].messages.find(m => m.to === d.players[0].id && m.tag === 'result');
-    ok(m1 && m1.roles.length >= 3 && m1.roles.every(r => names.has(r.name)), 'drunk: a made-up clue still uses only in-game roles');
+    const m1 = E.resolveNight(dr).reports[1].messages.find(m => m.to === dr.players[0].id && m.tag === 'result');
+    const m2 = E.resolveNight(dr).reports[1].messages.find(m => m.to === dr.players[0].id && m.tag === 'result');
+    ok(m1 && m1.roles.length === 4 && m1.roles.every(r => names.has(r.name)) && evilCount(dr, m1.roles) <= 1, 'drunk: a made-up clue looks real (4 in-game roles, at most one evil)');
     ok(m1 && m2 && m1.text === m2.text, 'drunk: a made-up clue is stable between runs');
   }
-  const small = nightOne(['investigator', 'villager', 'villager', 'villager', 'mafia']);
-  const pv2 = E.previewResult(small, { key: small.players[0].id, actor: small.players[0].id, ab: 'inv', targets: [small.players[1].id], opts: {} });
-  ok(pv2.roles.length === 3 && pv2.roles.every(r => ['Investigator', 'Villager', 'Mafia'].includes(r.name)), 'investigator: a small game uses every distinct in-game role');
 }
 
+
+/* ---------- Jailkeeper against a roleblocker ---------- */
+{
+  const setup = () => {
+    const s = nightOne(['mafia', 'investigator', 'jester', 'jailkeeper', 'consort', 'police', 'escort', 'villager']);
+    const [harsh, deep, , twisha, virti, , esc] = s.players;
+    const ab = (p, k) => E.nightAbilities(s, p).find(a => a.kind === k).id;
+    return { s, harsh, deep, twisha, virti, esc, ab };
+  };
+  // the Mafia Roleblocker blocks the Jailkeeper: no jail, so the Mafia kill goes through
+  {
+    const { s, harsh, deep, twisha, virti, ab } = setup();
+    E.setAction(s, { key: twisha.id, actor: twisha.id, ab: ab(twisha, 'jail'), targets: [harsh.id], opts: {} });
+    E.setAction(s, { key: virti.id, actor: virti.id, ab: ab(virti, 'roleblock'), targets: [twisha.id], opts: {} });
+    E.setAction(s, { key: 'mafia', actor: harsh.id, ab: 'factionKill', targets: [deep.id], opts: {} });
+    const r = E.resolveNight(s); const rep = r.reports[1];
+    ok(rep.deaths.some(d => d.id === deep.id), 'jailkeeper: a roleblocked Jailkeeper jails nobody, so the Mafia kill lands');
+    ok(rep.messages.some(m => m.to === twisha.id && /roleblocked/.test(m.text)), 'jailkeeper: is told they were roleblocked');
+    ok(!rep.messages.some(m => m.to === harsh.id && /jailed/.test(m.text)), 'jailkeeper: the would-be prisoner is not jailed');
+    ok((rep.why || []).some(t => /jail on .* did not happen/.test(t)), 'jailkeeper: the dawn report explains why the jail failed');
+  }
+  // they target each other: the Jailkeeper wins
+  {
+    const { s, harsh, deep, twisha, virti, ab } = setup();
+    E.setAction(s, { key: twisha.id, actor: twisha.id, ab: ab(twisha, 'jail'), targets: [virti.id], opts: {} });
+    E.setAction(s, { key: virti.id, actor: virti.id, ab: ab(virti, 'roleblock'), targets: [twisha.id], opts: {} });
+    const rep = E.resolveNight(s).reports[1];
+    ok(rep.messages.some(m => m.to === virti.id && /jailed/.test(m.text)), 'jailkeeper: jailing the roleblocker who targets you wins');
+    ok(!rep.messages.some(m => m.to === twisha.id && /roleblocked/.test(m.text)), 'jailkeeper: the jailed roleblocker blocks nobody');
+  }
+  // a Town Escort blocking the Jailkeeper stops the jail too
+  {
+    const { s, harsh, deep, twisha, esc, ab } = setup();
+    E.setAction(s, { key: twisha.id, actor: twisha.id, ab: ab(twisha, 'jail'), targets: [harsh.id], opts: {} });
+    E.setAction(s, { key: esc.id, actor: esc.id, ab: ab(esc, 'roleblock'), targets: [twisha.id], opts: {} });
+    E.setAction(s, { key: 'mafia', actor: harsh.id, ab: 'factionKill', targets: [deep.id], opts: {} });
+    ok(E.resolveNight(s).reports[1].deaths.some(d => d.id === deep.id), 'jailkeeper: any roleblock on the Jailkeeper stops the jail');
+  }
+  // no roleblock: the jail still cancels the Mafia kill, as before
+  {
+    const { s, harsh, deep, twisha, ab } = setup();
+    E.setAction(s, { key: twisha.id, actor: twisha.id, ab: ab(twisha, 'jail'), targets: [harsh.id], opts: {} });
+    E.setAction(s, { key: 'mafia', actor: harsh.id, ab: 'factionKill', targets: [deep.id], opts: {} });
+    ok(E.resolveNight(s).reports[1].deaths.length === 0, 'jailkeeper: an unblocked jail on the carrier still stops the kill');
+  }
+}
 
 test("every engine rule check passes", () => {
   expect(fails).toEqual([]);
