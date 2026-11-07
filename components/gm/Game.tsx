@@ -383,6 +383,22 @@ function Day() {
 }
 
 /* ---------- the end ---------- */
+/** One tap that teaches "For you" what this group enjoys. */
+function Rate() {
+  const v = (A.s as { rating?: number }).rating || 0;
+  return (
+    <div className="well tight">
+      <div className="spread" style={{ flexWrap: "wrap", gap: 10 }}>
+        <span className="grow" style={{ minWidth: 150 }}><b className="subtitle">How was this game?</b><span className="small muted" style={{ display: "block", marginTop: 2 }}>Your answer shapes the “For you” suggestions.</span></span>
+        <span className="row nowrap" style={{ gap: 8 }}>
+          <button className="btn sm" aria-pressed={v === 1} style={v === 1 ? { background: "var(--ink)", color: "var(--ground)" } : undefined} onClick={() => act.rate(v === 1 ? 0 : 1)}><Icon name="thumbup" size="sm" />Loved it</button>
+          <button className="btn sm" aria-pressed={v === -1} style={v === -1 ? { background: "var(--ink)", color: "var(--ground)" } : undefined} onClick={() => act.rate(v === -1 ? 0 : -1)}><Icon name="thumbdown" size="sm" />Not for us</button>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function Ended() {
   const s = A.s; const r = s.result!; const st = E.stats(s); const wins = new Set(r.winners.map(w => w.id));
   const fate = (pid: string, alive: boolean) => { if (alive) return "survived"; const d = s.deaths.slice().reverse().find(x => x.id === pid); return d ? `died ${d.ph}, ${d.cause}` : "died"; };
@@ -391,7 +407,8 @@ function Ended() {
       <h1 className="mega phase-title">{r.factionName} {r.faction === "draw" || r.faction.startsWith("solo:") ? "wins" : "win"}.</h1>
       <p className="lead" style={{ marginTop: 16 }}>{r.reason}</p>
     </section>
-    <div className="stack">
+    <Rate />
+    <div className="stack" style={{ marginTop: 18 }}>
       <button className="btn block primary" onClick={act.rematch}><Icon name="dice" />Rematch — reshuffle and go</button>
       <button className="btn block" onClick={act.playAgain}><Icon name="refresh" />Play again with these players</button>
     </div>

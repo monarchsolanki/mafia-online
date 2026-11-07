@@ -173,6 +173,40 @@ const invCheck = (s, inv, target) => { const act = { key: inv.id, actor: inv.id,
   }
 }
 
+/* ---------- Suggestions: the basic game, one-role twists, and "For you" ---------- */
+{
+  const want = { 5: [1, 1, 1, 2], 7: [2, 1, 1, 3], 10: [3, 1, 1, 5], 12: [3, 1, 1, 7], 13: [4, 1, 2, 6], 16: [5, 2, 2, 7], 20: [6, 2, 2, 10] };
+  for (const [n, [m, d, p, v]] of Object.entries(want)) {
+    const pool = E.recommend(+n, 'basic').pool;
+    ok(pool.mafia === m && pool.doctor === d && pool.police === p && pool.villager === v && Object.keys(pool).length === 4, `basic: ${n} players → ${m} Mafia, ${d} Doctor, ${p} Police, ${v} Villagers`);
+  }
+  for (let n = 5; n <= 30; n++) { const pool = E.recommend(n, 'basic').pool; ok(E.poolList(pool).length === n && pool.mafia * 3 < n, `basic: ${n} players fills every seat, Mafia under a third`); }
+  ok(E.newGame().setup.style === 'basic', 'basic: new games start from the basic setup');
+
+  const base = E.recommend(10, 'basic').pool;
+  const tw = E.suggestTwists(null, base, [], 10);
+  ok(tw.length > 0, 'twist: there is always something to try');
+  for (const t of tw.slice(0, 10)) {
+    const next = Object.assign({}, base); next[t.remove]--; next[t.add] = (next[t.add] || 0) + 1;
+    ok(E.poolList(next).length === 10 && !base[t.add] && Math.abs(t.balance.score) <= 3, `twist: ${t.removeName} → ${t.addName} changes one role and stays fair`);
+  }
+  const played = [{ roles: Object.assign({ jester: 1 }, base) }, { roles: Object.assign({ jester: 1 }, base) }];
+  ok(E.suggestTwists(null, base, played, 10)[0].add !== 'jester', 'twist: prefers roles not played lately');
+
+  ok(E.recommend(10, 'foryou', 1, null, []).note.includes('basic'), 'for you: without history it is the basic game');
+  const liked = [
+    { roles: { mafia: 2, godfather: 1, doctor: 1, police: 1, bodyguard: 1, jester: 1, villager: 3 }, liked: 1 },
+    { roles: { mafia: 2, doctor: 1, police: 1, jester: 1, lookout: 1, villager: 4 }, liked: 1 },
+    { roles: { mafia: 2, doctor: 1, police: 1, arsonist: 1, villager: 5 }, liked: -1 },
+  ];
+  const fy = E.forYou(null, 10, liked, 1);
+  ok(E.poolList(fy.pool).length === 10 && Math.abs(fy.balance.score) <= 3, 'for you: fills every seat and stays fair');
+  ok(fy.pool.jester >= 1, 'for you: brings back a role from games the group loved');
+  ok(!fy.pool.arsonist, 'for you: leaves out roles from games the group disliked');
+  ok(/From 2 games you liked/.test(fy.note) && /Jester/.test(fy.note), 'for you: explains itself');
+  ok(JSON.stringify(E.forYou(null, 10, liked, 1).pool) === JSON.stringify(fy.pool), 'for you: same history, same suggestion');
+}
+
 test("every engine rule check passes", () => {
   expect(fails).toEqual([]);
   expect(pass).toBeGreaterThan(50);
