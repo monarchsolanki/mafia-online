@@ -2,7 +2,7 @@
 // Which roles the group has played lately, for "Tonight's twist". Kept on this device, and merged with the role lists
 // saved in the host's account games when signed in, so a new phone still knows what the group played.
 import type { Game } from "@/lib/engine/engine";
-import { LS, taste } from "./store";
+import { A, LS, taste } from "./store";
 import { Cloud } from "./cloud";
 
 export const HKEY = "omerta.history.v1";
@@ -41,4 +41,10 @@ export function playedHistory(): Played[] {
   return [...byId.values()].sort((a, b) => b.at - a.at).slice(0, 20);
 }
 
-taste.history = playedHistory;
+/** What "For you" learns from: recent games plus every saved setup (a setup the host kept is one they like). */
+export function tasteHistory(): (Played | { roles: Record<string, number>; n: number; saved: true })[] {
+  const saved = A.presets.filter(p => p.pool && Object.keys(p.pool).length).map(p => ({ roles: p.pool, n: p.n, saved: true as const }));
+  return [...playedHistory(), ...saved];
+}
+
+taste.history = tasteHistory;

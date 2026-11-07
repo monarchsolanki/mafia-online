@@ -123,7 +123,7 @@ export const teamName = (t: string | null | undefined) => ({ town: "Town", mafia
 export function fmtDur(ms: number) { const m = Math.round(ms / 60000); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; }
 export function effN() { const s = A.s; return Math.max(5, Math.min(40, Math.max(s.players.length, s.setup.targetN || 10))); }
 /** The group's recent games for "For you" and the twist; filled in by history.ts (which needs the account too). */
-export const taste = { history: (): { id?: string; at?: number; n?: number; roles: Record<string, number>; liked?: number }[] => [] };
+export const taste = { history: (): { id?: string; at?: number; n?: number; roles: Record<string, number>; liked?: number; saved?: boolean }[] => [] };
 export function autoPool(s: Game) { if (!s.setup.poolTouched) s.setup.pool = E.recommend(Math.max(5, Math.min(40, Math.max(s.players.length, s.setup.targetN || 10))), s.setup.style, s.setup.seed, s, taste.history()).pool; }
 export function roleCount() { return E.poolList(A.s.setup.pool).length; }
 export function afterPlayersChange(s: Game) {

@@ -205,6 +205,14 @@ const invCheck = (s, inv, target) => { const act = { key: inv.id, actor: inv.id,
   ok(!fy.pool.arsonist, 'for you: leaves out roles from games the group disliked');
   ok(/From 2 games you liked/.test(fy.note) && /Jester/.test(fy.note), 'for you: explains itself');
   ok(JSON.stringify(E.forYou(null, 10, liked, 1).pool) === JSON.stringify(fy.pool), 'for you: same history, same suggestion');
+  // saved setups count as setups the group likes
+  const saved = [{ roles: { mafia: 2, godfather: 1, doctor: 1, police: 1, bodyguard: 1, villager: 4 }, saved: true }, { roles: { mafia: 2, doctor: 1, police: 1, bodyguard: 1, jester: 1, villager: 4 }, saved: true }];
+  const fs = E.forYou(null, 10, saved, 1);
+  ok(fs.pool.bodyguard >= 1 && E.poolList(fs.pool).length === 10 && Math.abs(fs.balance.score) <= 3, 'for you: saved setups alone shape the suggestion');
+  ok(/From your 2 saved setups/.test(fs.note) && /Bodyguard/.test(fs.note), 'for you: says it used the saved setups');
+  const both = E.forYou(null, 10, liked.concat(saved), 1);
+  ok(/2 saved setups and 2 games you liked/.test(both.note), 'for you: games and saved setups together');
+  ok(JSON.stringify(E.suggestTwists(null, base, saved, 10)) === JSON.stringify(E.suggestTwists(null, base, [], 10)), 'twist: a saved setup does not count as played');
 }
 
 test("every engine rule check passes", () => {
