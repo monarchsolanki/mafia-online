@@ -1,4 +1,5 @@
 import type { PlayerCard } from "@/lib/engine/engine";
+import { tipsFor } from "@/lib/client/tips";
 
 /** A player's secret: their role develops out of blur. Colour never gives the team away; only the words do. */
 export function RoleCard({ c, compact }: { c: PlayerCard; compact?: boolean }) {
@@ -14,6 +15,7 @@ export function RoleCard({ c, compact }: { c: PlayerCard; compact?: boolean }) {
         {c.teammates.length > 0 && <div><dt>Your allies</dt><dd>{c.teammates.map((t, i) => <div key={i}>{t.name} <span className="muted">· {t.role}{t.alive === false ? " · dead" : ""}</span></div>)}</dd></div>}
         {c.target && <div><dt>Your target</dt><dd className="title">{c.target}</dd></div>}
         {c.lover && <div><dt>Your lover</dt><dd>{c.lover}</dd></div>}
+        {!compact && <div><dt>How to play</dt><dd><ul>{tipsFor(c.roleId, c.team).map((t, i) => <li key={i}>{t}</li>)}</ul></dd></div>}
       </dl>
     </div>
   );

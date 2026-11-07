@@ -125,7 +125,8 @@ export function effN() { const s = A.s; return Math.max(5, Math.min(40, Math.max
 /** The group's recent games for "For you" and the twist; filled in by history.ts (which needs the account too). */
 export const taste = { history: (): { id?: string; at?: number; n?: number; roles: Record<string, number>; liked?: number; saved?: boolean }[] => [] };
 export function autoPool(s: Game) { if (!s.setup.poolTouched) s.setup.pool = E.recommend(Math.max(5, Math.min(40, Math.max(s.players.length, s.setup.targetN || 10))), s.setup.style, s.setup.seed, s, taste.history()).pool; }
-export function roleCount() { return E.poolList(A.s.setup.pool).length; }
+/** Seats filled by the role list. The Drunk is an extra card on top of a seat, so it is not counted here. */
+export function roleCount() { return E.seatList(A.s.setup.pool).length; }
 export function afterPlayersChange(s: Game) {
   s.setup.dealt = false; s.setup.revealed = false;
   for (const p of s.players) if (!p.lock) p.roleId = null;

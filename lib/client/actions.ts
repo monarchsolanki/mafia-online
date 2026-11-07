@@ -103,6 +103,24 @@ export function loadPreset(i: number) {
   setupMut(s => { s.setup.pool = E.clone(p.pool); s.setup.poolTouched = true; s.setup.dealt = false; });
   toast(`Loaded ${p.name}`);
 }
+/** A setup shared by another host: save it, and optionally use it right away. Custom roles come along. */
+export function importSetup(sh: { name: string; pool: Record<string, number>; custom?: Record<string, any>[] }, useNow: boolean) {
+  const map: Record<string, string> = {};
+  for (const d of sh.custom || []) {
+    const existing = Object.values(A.s.customRoles).find(r => r.name === d.name) || A.customLib.find(r => r.name === d.name);
+    if (existing) { map[d.id] = existing.id; continue; }
+    let r = E.makeCustomRole(d); let k = 2;
+    while (E.LIBMAP[r.id] || A.s.customRoles[r.id]) { r = E.makeCustomRole(Object.assign({}, d, { idSuffix: String(k++) })); }
+    Cloud.saveRole(r); map[d.id] = r.id;
+  }
+  const pool: Record<string, number> = {};
+  for (const [id, n] of Object.entries(sh.pool)) pool[map[id] || id] = (pool[map[id] || id] || 0) + n;
+  Cloud.saveSetup({ name: sh.name, n: E.poolList(pool).length, pool, style: "custom" });
+  if (useNow && A.s.phase === "setup") {
+    setupMut(s => { s.setup.pool = E.clone(pool); s.setup.poolTouched = true; s.setup.dealt = false; });
+    Object.assign(A.ui, { view: "command", setupStep: 1, sheet: null }); top0(); emit();
+  } else { A.ui.sheet = null; emit(); }
+}
 export function deletePreset(i: number) {
   const p = A.presets[i]; if (!p) return;
   confirmSheet({ title: `Delete “${p.name}”?`, body: Cloud.host ? "This removes the setup from your account." : "This removes the setup from this device.", ok: "Delete", danger: true, onOk: () => Cloud.deleteSetup(i) });
@@ -170,6 +188,17 @@ export function manualRole(pid: string, v: string) {
   });
 }
 export function deal() { cmd("Deal roles", s => { E.assignRoles(s); s.setup.dealt = true; s.setup.revealed = false; }); A.ui.showAssign = false; A.ui.peek = {}; Sound.confirm(); emit(); }
+/** Move a Drunk card from one player to another (or put it on someone). */
+export function moveDrunk(from: string | null, to: string) {
+  if (!to || from === to) return;
+  cmd(`Drunk: ${E.pname(A.s, to)}`, s => { if (from) E.setDrunk(s, from, false); E.setDrunk(s, to, true); });
+  toast(`${E.pname(A.s, to)} is now the drunk one`);
+}
+export function toggleDrunk(pid: string) {
+  const on = !E.getP(A.s, pid)!.meta.drunk;
+  cmd(`${E.pname(A.s, pid)}: ${on ? "drunk" : "sober"}`, s => E.setDrunk(s, pid, on));
+  toast(on ? `${E.pname(A.s, pid)} is drunk from now on` : `${E.pname(A.s, pid)} is sober from now on`);
+}
 export function openReveal(ids: string[], after?: () => void) { A.ui.overlay = { type: "reveal", queue: ids, i: 0, stage: "pass", after }; A.ui.sheet = null; emit(); }
 export function revealAll() { if (!A.s.setup.dealt) { toast("Deal the roles first."); return; } openReveal(A.s.players.map(p => p.id), () => { A.s.setup.revealed = true; save(); emit(); }); }
 function nightFalls() { Sound.night(); A.ui.overlay = { type: "cine", kind: "night", n: A.s.night }; }

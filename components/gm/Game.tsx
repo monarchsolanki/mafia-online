@@ -171,6 +171,7 @@ function StepPanel({ st, idx, total }: { st: NightStep; idx: number; total: numb
       <h3 className="label" style={{ marginTop: 22, marginBottom: 10 }}>Who carries it out?</h3>
       <div className="targets">{st.actors!.map(id => <button key={id} className="tgt" onClick={() => act.draftCarrier(id)} aria-pressed={d.carrier === id}><span className="nm">{E.pname(s, id)}</span></button>)}</div>
       {carrier && E.nightAbilities(s, carrier).length > 0 && <p className="note warn" style={{ marginTop: 10 }}><Icon name="info" size="sm" /><span>{carrier.name} gives up their own {role(carrier.roleId).name} ability tonight to carry out the {st.faction === "mafia" ? "kill" : "bite"}.{st.actors!.length > 1 ? " Pick someone else if you want them to use it." : " They are the only one who can."}</span></p>}
+      {carrier && carrier.meta.drunk && <p className="note warn" style={{ marginTop: 10 }}><Icon name="bottle" size="sm" /><span>{carrier.name} is drunk. {E.drunkFails(s, carrier.id) ? "If they carry it out tonight, the kill fails." : "Tonight they're lucky: the kill works."}</span></p>}
       {strongUses > 0 && <div className="toggle"><div className="grow"><b id="sk-l">Strong kill (Unstoppable)</b><span>{strongUses} left — pierces heals and jail.</span></div><button className="switch" role="switch" aria-checked={!!d.opts.strong} aria-labelledby="sk-l" onClick={() => act.draftOpt("strong")} /></div>}
       <h3 className="label" style={{ marginTop: 22, marginBottom: 10 }}>{st.faction === "mafia" ? "The victim" : "Who to bite"}</h3>
       {d.carrier && <TargetGrid actorId={d.carrier} abId={st.kind!} d={d} />}
@@ -184,6 +185,7 @@ function StepPanel({ st, idx, total }: { st: NightStep; idx: number; total: numb
       <h2 className="display">{r.name}, wake up.</h2>
       <p className="lead" style={{ marginTop: 10, display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}><span className="chip" style={{ alignSelf: "center" }}><Icon name={r.icon} size="sm" />{actor.name}</span>{SCRIPT[ab.kind] || "What do you do tonight?"}</p>
       {st.drunk && <p className="note warn" style={{ marginTop: 12 }}><Icon name="bottle" size="sm" /><span>{actor.name} is the Drunk. Record their choice as normal — it has no effect.</span></p>}
+      {actor.meta.drunk && <p className="note warn" style={{ marginTop: 12 }}><Icon name="bottle" size="sm" /><span>{actor.name} is drunk. {E.drunkFails(s, actor.id) ? "Tonight their action fails and any answer they get is wrong — give it anyway." : "Tonight they're lucky: their action works as normal."}</span></p>}
     </>;
     if (carrying) {
       return (<>
@@ -421,7 +423,7 @@ function Ended() {
       <div className="list" style={{ marginTop: 6 }}>{s.players.map(p => { const ir = (s.initialRoles || []).find(x => x.id === p.id); const changed = ir && ir.roleId !== p.roleId;
         return (
           <div className="li" key={p.id}>
-            <span className="grow"><b>{p.name}</b><span>{role(p.roleId).name}{changed ? ` (started as ${role(ir!.roleId).name})` : ""} · {fate(p.id, p.alive)}</span></span>
+            <span className="grow"><b>{p.name}</b><span>{role(p.roleId).name}{p.meta.drunk || (ir && ir.drunk) ? " (drunk)" : ""}{changed ? ` (started as ${role(ir!.roleId).name})` : ""} · {fate(p.id, p.alive)}</span></span>
             <span className={`team ${p.team}`}>{teamName(p.team)}</span>
             <span className="small strong" style={{ width: 44, textAlign: "right", color: wins.has(p.id) ? "var(--ink)" : "var(--ink-2)" }}>{wins.has(p.id) ? "Won" : "Lost"}</span>
           </div>); })}</div>

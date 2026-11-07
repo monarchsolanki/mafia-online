@@ -432,7 +432,7 @@ function Ended({ r }: { r: any }) {
       <section className="section">
         <h2 className="title">Every role</h2>
         <div className="list" style={{ marginTop: 6 }}>{r.roles.map((x: any, i: number) => (
-          <div className="li" key={i}><span className="grow"><b>{x.name}</b><span>{x.role} · {x.team}{x.alive ? "" : " · died"}</span></span>{!x.alive && <Icon name="skull" size="sm" />}</div>))}</div>
+          <div className="li" key={i}><span className="grow"><b>{x.name}</b><span>{x.role}{x.drunk ? " (drunk)" : ""} · {x.team}{x.alive ? "" : " · died"}</span></span>{!x.alive && <Icon name="skull" size="sm" />}</div>))}</div>
       </section>
     </>
   );

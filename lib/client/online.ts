@@ -41,7 +41,7 @@ export function publicView(s: Game): any {
   }
   if (s.phase === "ended" && s.result) pv.result = { factionName: s.result.factionName, faction: s.result.faction, reason: s.result.reason,
     winners: s.result.winners.map(w => ({ name: E.pname(s, w.id), why: w.why })),
-    roles: s.players.map(p => ({ name: p.name, role: E.getRole(s, p.roleId).name, team: E.teamLabel(p), alive: p.alive })) };
+    roles: s.players.map(p => ({ name: p.name, role: E.getRole(s, p.roleId).name, team: E.teamLabel(p), alive: p.alive, drunk: !!p.meta.drunk })) };
   return pv;
 }
 /* ---------- night choices and the faction chat, as each phone may see them ---------- */

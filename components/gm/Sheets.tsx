@@ -7,7 +7,8 @@ import { Cloud } from "@/lib/client/cloud";
 import * as act from "@/lib/client/actions";
 import { Icon } from "@/components/ui/Icon";
 import { RoleSheet, CustomRoleSheet } from "./Roles";
-import { OnlinePanel, ChatLog } from "./OnlinePanel";
+import { OnlinePanel, ChatLog, Qr } from "./OnlinePanel";
+import { setupLink, type SharedSetup } from "@/lib/client/share";
 import { fxChips } from "./Players";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -100,6 +101,7 @@ function PlayerSheet({ id }: { id: string }) {
         <button className="btn sm" onClick={() => act.openSheet("rename", { id: p.id })}><Icon name="edit" size="sm" />Rename</button>
         {r && s.phase !== "setup" && s.phase !== "ended" && <>
           <button className="btn sm" onClick={() => act.openSheet("setrole", { id: p.id })}><Icon name="swap" size="sm" />Change role</button>
+          <button className="btn sm" onClick={() => act.toggleDrunk(p.id)}><Icon name="bottle" size="sm" />{p.meta.drunk ? "Sober up" : "Make drunk"}</button>
           {p.alive ? <button className="btn sm danger" onClick={() => act.openSheet("kill", { id: p.id })}><Icon name="skull" size="sm" />Kill</button> : <button className="btn sm" onClick={() => act.revive(p.id)}><Icon name="ankh" size="sm" />Revive</button>}
         </>}
       </div>
@@ -272,6 +274,37 @@ function DeleteGame({ id, name }: { id: string; name: string }) {
   </>);
 }
 
+function ShareSetup({ i }: { i: number }) {
+  const p = A.presets[i]; if (!p) return null;
+  const link = setupLink(p); const qrOk = link.length < 1800;
+  const copy = () => (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(() => toast("Link copied"), () => act.openSheet("copytext", { title: "Setup link", text: link }));
+  const share = () => { const n = navigator as Navigator & { share?: (d: ShareData) => Promise<void> }; if (n.share) n.share({ title: p.name, text: `Try this Mafia setup: ${p.name}`, url: link }).catch(() => {}); else copy(); };
+  return (<>
+    <Head title={`Share “${p.name}”`} icon="share" />
+    <p className="small muted">Another host scans the code or opens the link to save this setup. Only the role list travels — no players, no games.</p>
+    <div className="row nowrap" style={{ marginTop: 14, gap: 16, alignItems: "flex-start" }}>
+      {qrOk && <Qr text={link} />}
+      <div style={{ minWidth: 0 }}>
+        <p className="subtitle">{p.n} players</p>
+        <p className="small muted" style={{ marginTop: 4 }}>{E.poolList(p.pool).filter((id, k, a) => a.indexOf(id) === k).map(id => `${p.pool[id] > 1 ? p.pool[id] + "× " : ""}${(E.getRole(A.s, id) || { name: id }).name}`).join(", ")}</p>
+      </div>
+    </div>
+    <div className="row" style={{ marginTop: 16 }}><button className="btn primary" onClick={share}><Icon name="share" />Share link</button><button className="btn" onClick={copy}><Icon name="copy" size="sm" />Copy</button></div>
+  </>);
+}
+function ImportSetup({ sh }: { sh: SharedSetup }) {
+  const n = E.poolList(sh.pool).length; const name = (id: string) => { const c = (sh.custom || []).find(x => x.id === id); return c ? c.name : (E.getRole(A.s, id) || { name: id }).name; };
+  return (<>
+    <Head title="A setup was shared with you" icon="share" />
+    <p className="title">{sh.name}</p>
+    <p className="small muted" style={{ marginTop: 4 }}>{n} players · {Object.keys(sh.pool).map(id => `${sh.pool[id] > 1 ? sh.pool[id] + "× " : ""}${name(id)}`).join(", ")}</p>
+    {(sh.custom || []).length > 0 && <p className="small" style={{ marginTop: 8 }}>Includes {sh.custom!.length} custom role{sh.custom!.length === 1 ? "" : "s"}, added to your roles too.</p>}
+    <div className="row" style={{ marginTop: 16 }}>
+      <button className="btn primary" onClick={() => act.importSetup(sh, false)}><Icon name="save" size="sm" />Save to my setups</button>
+      {A.s.phase === "setup" && <button className="btn" onClick={() => act.importSetup(sh, true)}>Save and use it now</button>}
+    </div>
+  </>);
+}
 function CopyText({ title, text }: { title: string; text: string }) {
   return (<><Head title={title} /><p className="small muted">Saving files isn’t available here, so select this text and copy it.</p><textarea className="input" readOnly style={{ marginTop: 12, minHeight: 200, fontSize: 13 }} value={text} /></>);
 }
@@ -301,6 +334,8 @@ export function SheetHost() {
       case "import": return <Import />;
       case "copytext": return <CopyText title={sh.title} text={sh.text} />;
       case "diag": return <Diagnose d={sh.data} />;
+      case "share-setup": return <ShareSetup i={sh.i} />;
+      case "import-setup": return <ImportSetup sh={sh.data} />;
       case "chatlog": return <><Head title="Faction chat" icon="mask" /><ChatLog /></>;
       case "signin": return <SignIn />;
       case "signup": return <SignUp />;

@@ -93,7 +93,7 @@ export interface Game {
   lastWin?: WinCheck | null;
   result: { faction: string; factionName: string; reason: string; winners: { id: string; why: string }[] } | null;
   executions: number;
-  initialRoles: { id: string; roleId: string; team: Team; target?: string | null; fake?: string | null }[];
+  initialRoles: { id: string; roleId: string; team: Team; target?: string | null; fake?: string | null; drunk?: boolean }[];
   nightUi?: { night: number; visited: Record<string, string>; phone?: Record<string, { by: string; pass?: boolean; ab?: string; targets?: string[]; waiting?: boolean }> };
   lastAnnounce?: { n: number; format: string; custom?: string };
 }
@@ -106,7 +106,7 @@ export interface NightStep {
 }
 
 export interface PlayerCard {
-  name: string; color: string; roleName: string; icon: string; team: Team; teamName: string; short: string; desc: string; winText: string;
+  name: string; color: string; roleId?: string; roleName: string; icon: string; team: Team; teamName: string; short: string; desc: string; winText: string;
   abilities: string[]; teammates: { name: string; role: string; alive: boolean }[]; target: string | null; lover: string | null;
 }
 
@@ -138,6 +138,11 @@ declare const Engine: {
   clueRoles(s: Game, shownId: string, key: string, hide?: string | null): { id: string; name: string }[];
   clueShown(s: Game, p: Player, ctx: { disguised: Set<string>; framed: Set<string> }, key: string): { id: string; hide: string | null };
   evilRole(r: Role): boolean;
+  seatList(pool: Record<string, number>): string[];
+  drunkCards(pool: Record<string, number>): number;
+  setDrunk(s: Game, pid: string, on: boolean): Game;
+  drunkCandidates(s: Game): Player[];
+  drunkFails(s: Game, pid: string, night?: number): boolean;
   basicPool(n: number, s?: Game | null): Record<string, number>;
   suggestTwists(s: Game | null, pool: Record<string, number>, history: PlayedGame[], n: number): Twist[];
   newGame(): Game;

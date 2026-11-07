@@ -4,6 +4,7 @@ import E from "@/lib/engine/engine";
 import { A, emit, teamName, toast } from "@/lib/client/store";
 import * as act from "@/lib/client/actions";
 import { Icon, ROLE_ICONS } from "@/components/ui/Icon";
+import { tipsFor } from "@/lib/client/tips";
 
 const FILTERS = [["all", "All"], ["town", "Town"], ["mafia", "Mafia"], ["neutral", "Neutral"], ["killing", "Killing"], ["protective", "Protective"], ["investigative", "Investigative"], ["support", "Support"], ["roleblock", "Roleblock"], ["information", "Information"], ["chaos", "Chaos"], ["custom", "Custom"]];
 const DEF_NAMES = ["None", "Basic", "Powerful", "Invincible"];
@@ -45,6 +46,7 @@ export function RoleSheet({ id }: { id: string }) {
       <p style={{ marginTop: 14 }}>{r.desc}</p>
       {(r.abilities || []).length > 0 && <><h3 className="label" style={{ marginTop: 18 }}>Abilities</h3><ul className="small" style={{ paddingLeft: 18, margin: "6px 0 0" }}>{r.abilities.map((a, i) => <li key={i}>{E.describeAbility(s, { uses: {} }, a)}{typeof a.uses === "number" ? ` · ${a.uses} uses` : a.uses === "guessShots" ? ` · ${s.config.guessShots} shots` : ""}{a.viaFaction ? " · used through the Mafia kill" : ""}</li>)}</ul></>}
       <h3 className="label" style={{ marginTop: 18 }}>Wins when</h3><p className="small" style={{ marginTop: 4 }}>{r.winText}</p>
+      <h3 className="label" style={{ marginTop: 18 }}>How to play</h3><ul className="small" style={{ paddingLeft: 18, margin: "6px 0 0" }}>{tipsFor(r.id, r.team).map((t, i) => <li key={i}>{t}</li>)}</ul>
       <h3 className="label" style={{ marginTop: 18 }}>Under investigation</h3>
       <div className="small muted stack" style={{ marginTop: 6, gap: 4 }}>
         <span>Police: {sus ? "thumbs up" : "thumbs down"}{id === "werewolf" && sus ? " (only on full moons)" : ""}</span>

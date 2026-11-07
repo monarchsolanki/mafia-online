@@ -208,7 +208,7 @@ function StepRoles() {
       <section className="section"><Twist /></section>
 
       <section className="section">
-        <div className="section-head"><h2 className="title">Your role list</h2><span className="small num" style={{ color: diff === 0 ? "var(--ink)" : "var(--accent)", fontWeight: 650 }}>{R} of {n}</span></div>
+        <div className="section-head"><h2 className="title">Your role list</h2><span className="small num" style={{ color: diff === 0 ? "var(--ink)" : "var(--accent)", fontWeight: 650 }}>{R} of {n}{E.drunkCards(s.setup.pool) ? ` · +${E.drunkCards(s.setup.pool)} Drunk` : ""}</span></div>
         {R ? <><RoleChips pool={s.setup.pool} /><Balance pool={s.setup.pool} /></> : <p className="small muted">Empty — add roles below or use the suggestion.</p>}
         {E.setupWarnings(s).length > 0 && <div className="stack" style={{ marginTop: 14 }}>{E.setupWarnings(s).map((w, i) => <p key={i} className="note warn"><Icon name="alert" size="sm" /><span>{w}</span></p>)}</div>}
       </section>
@@ -246,6 +246,7 @@ function StepRoles() {
               <div className="li" key={p.id || i}>
                 <span className="grow"><b>{p.name}</b><span>{plural(p.n, "player")} · {E.STYLE_NAMES[p.style] || "Custom"}</span></span>
                 <button className="btn sm" onClick={() => act.loadPreset(i)}>Load</button>
+                <button className="iconbtn" onClick={() => act.openSheet("share-setup", { i })} aria-label={`Share setup ${p.name}`}><Icon name="share" size="sm" /></button>
                 <button className="iconbtn" onClick={() => act.deletePreset(i)} aria-label={`Delete setup ${p.name}`}><Icon name="trash" size="sm" /></button>
               </div>
             ))}
@@ -275,7 +276,8 @@ function StepRules() {
 }
 
 function StepDeal() {
-  const s = A.s; const show = A.ui.showAssign; const pool = s.setup.pool; const ids = Object.keys(pool).filter(k => pool[k] > 0);
+  const s = A.s; const show = A.ui.showAssign; const pool = s.setup.pool; const ids = Object.keys(pool).filter(k => pool[k] > 0 && k !== "drunk");
+  const drunks = s.players.filter(p => p.meta.drunk); const cards = E.drunkCards(pool);
   return (
     <>
       <h1 className="display">Deal the roles</h1>
@@ -292,6 +294,7 @@ function StepDeal() {
             if (p.roleId === "executioner" && p.meta.target) extra.push(`Target: ${E.pname(s, p.meta.target)}`);
             if (p.roleId === "guardian" && p.meta.target) extra.push(`Ward: ${E.pname(s, p.meta.target)}`);
             if (p.roleId === "drunk" && p.meta.fake) extra.push(`Believes they are the ${role(p.meta.fake).name}`);
+            if (p.meta.drunk) extra.push("Drunk");
           }
           return (
             <div className="li" key={p.id}>
@@ -309,6 +312,20 @@ function StepDeal() {
           );
         })}
       </div>
+      {cards > 0 && s.setup.dealt && (
+        <section className="section well">
+          <h2 className="subtitle">The Drunk card</h2>
+          <p className="small muted" style={{ marginTop: 4 }}>Dealt at random onto a Town power role. They keep their role and never learn they are drunk: 80% of nights their action fails and their information is wrong. Move it to anyone you like.</p>
+          {(drunks.length ? drunks : [null]).slice(0, Math.max(1, cards)).map((d, k) => (
+            <label key={k} className="field" style={{ marginTop: 12 }}><span>{cards > 1 ? `Drunk ${k + 1}` : "Drunk"}</span>
+              <select value={d ? d.id : ""} onChange={e => act.moveDrunk(d ? d.id : null, e.target.value)}>
+                {!d && <option value="">Nobody yet</option>}
+                {s.players.map(p => <option key={p.id} value={p.id} disabled={!!p.meta.drunk && (!d || p.id !== d.id)}>{p.name}{show || A.ui.peek[p.id] ? ` — ${p.roleId ? role(p.roleId).name : "no role"}` : ""}</option>)}
+              </select>
+            </label>
+          ))}
+        </section>
+      )}
       <Dock left={s.setup.dealt ? "Dealt. Hide the roles before handing the phone over." : "Deal before revealing."}>
         <button className="btn primary grow" onClick={() => act.setStep(4)} disabled={!!act.setupBlocked(4)}><span className="t">Reveal</span><Icon name="chev" size="sm" /></button>
       </Dock>
