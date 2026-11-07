@@ -48,7 +48,7 @@ export function RoleSheet({ id }: { id: string }) {
       <h3 className="label" style={{ marginTop: 18 }}>Under investigation</h3>
       <div className="small muted stack" style={{ marginTop: 6, gap: 4 }}>
         <span>Police: {sus ? "thumbs up" : "thumbs down"}{id === "werewolf" && sus ? " (only on full moons)" : ""}</span>
-        <span>Investigator clue group “{E.CLUE_NAMES[r.clue] || r.clue}”: {E.rolesInClue(s, r.clue).join(", ")} (only roles in the game are ever shown)</span>
+        <span>Investigator: listed among four roles from this game, {E.evilRole(r) ? "as the only evil role — the other three are Town or Neutral" : "alongside exactly one evil role as a decoy"}</span>
         <span>Gunsmith: {r.gun ? "carries a weapon" : "unarmed"}</span>
         <span>Mafia Investigator: {r.appearsTown ? "Town" : teamName(r.team)}</span>
         <span>Night defense: {DEF_NAMES[r.def || 0]}{r.rbImmune ? " · cannot be roleblocked" : ""}{r.ctrlImmune ? " · cannot be controlled" : ""}{r.trImmune ? " · cannot be transported" : ""}</span>
@@ -88,7 +88,6 @@ export function CustomRoleSheet() {
         {sel("def", "Night defense", [[0, "None"], [1, "Basic"], [2, "Powerful"], [3, "Invincible"]])}
         {sel("rb", "Roleblock", [[0, "Can be roleblocked"], [1, "Immune"]])}
         {sel("sus", "Police answer", [["auto", "By team — thumbs up only if Mafia"], [1, "Always thumbs up"], [0, "Always thumbs down"]])}
-        {sel("clue", "Investigator clue group", Object.entries(E.CLUE_NAMES))}
         {sel("nights", "Nights", [["all", "Every night"], ["notFirst", "From Night 2"], ["even", "Even nights only"]])}
       </div>
       <label className="field" style={{ marginTop: 12 }}><span>Description (shown on their role card)</span><textarea value={f.desc} onChange={set("desc")} maxLength={300} placeholder="What the role does, in a sentence or two." /></label>
