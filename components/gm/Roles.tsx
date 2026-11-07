@@ -48,7 +48,7 @@ export function RoleSheet({ id }: { id: string }) {
       <h3 className="label" style={{ marginTop: 18 }}>Under investigation</h3>
       <div className="small muted stack" style={{ marginTop: 6, gap: 4 }}>
         <span>Police: {sus ? "thumbs up" : "thumbs down"}{id === "werewolf" && sus ? " (only on full moons)" : ""}</span>
-        <span>Investigator: listed among four roles from this game, {E.evilRole(r) ? "as the only evil role — the other three are Town or Neutral" : "alongside exactly one evil role as a decoy"}</span>
+        <span>Investigator: listed among four roles from this game, {E.evilRole(r) ? "as the only evil role — the other three are Town or Neutral" : "sometimes alongside one evil role as a decoy (never more than one)"}</span>
         <span>Gunsmith: {r.gun ? "carries a weapon" : "unarmed"}</span>
         <span>Mafia Investigator: {r.appearsTown ? "Town" : teamName(r.team)}</span>
         <span>Night defense: {DEF_NAMES[r.def || 0]}{r.rbImmune ? " · cannot be roleblocked" : ""}{r.ctrlImmune ? " · cannot be controlled" : ""}{r.trImmune ? " · cannot be transported" : ""}</span>
