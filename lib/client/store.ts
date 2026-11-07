@@ -23,7 +23,7 @@ export type View = "home" | "command" | "players" | "timeline" | "roles" | "sett
 export interface Ui {
   view: View; backTo: View | null; setupStep: number; nightIdx: number; draft: any; sheet: Sheet; overlay: Overlay;
   libQuery: string; libFilter: string; poolTab: string; poolQuery: string; tlMode: "all" | "public"; pfilter: "all" | "alive" | "dead";
-  annFormat: string | null; annCustom: string; showAssign: boolean; peek: Record<string, boolean>; delivered: Record<string, boolean>;
+  annFormat: string | null; annCustom: string; twistIdx: number; showAssign: boolean; peek: Record<string, boolean>; delivered: Record<string, boolean>;
   timer: { running: boolean; left: number; endAt: number; total: number } | null; pin: string; bulk: boolean; promptSel: Record<string, string>;
   debug: boolean; toast: string | null; quickN: number;
 }
@@ -38,7 +38,7 @@ export const A = {
   groups: [] as Group[],
   ui: {
     view: "home", backTo: null, setupStep: 0, nightIdx: 0, draft: null, sheet: null, overlay: null, libQuery: "", libFilter: "all", poolTab: "town", poolQuery: "",
-    tlMode: "all", pfilter: "all", annFormat: null, annCustom: "", showAssign: false, peek: {}, delivered: {}, timer: null, pin: "", bulk: false, promptSel: {},
+    tlMode: "all", pfilter: "all", annFormat: null, annCustom: "", twistIdx: 0, showAssign: false, peek: {}, delivered: {}, timer: null, pin: "", bulk: false, promptSel: {},
     debug: false, toast: null, quickN: 10,
   } as Ui,
 };
@@ -122,7 +122,9 @@ export const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`
 export const teamName = (t: string | null | undefined) => ({ town: "Town", mafia: "Mafia", cult: "Cult", vampire: "Vampire", solo: "Solo killer", neutral: "Neutral" } as Record<string, string>)[t || ""] || "Neutral";
 export function fmtDur(ms: number) { const m = Math.round(ms / 60000); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; }
 export function effN() { const s = A.s; return Math.max(5, Math.min(40, Math.max(s.players.length, s.setup.targetN || 10))); }
-export function autoPool(s: Game) { if (!s.setup.poolTouched) s.setup.pool = E.recommend(Math.max(5, Math.min(40, Math.max(s.players.length, s.setup.targetN || 10))), s.setup.style, s.setup.seed, s).pool; }
+/** The group's recent games for "For you" and the twist; filled in by history.ts (which needs the account too). */
+export const taste = { history: (): { id?: string; at?: number; n?: number; roles: Record<string, number>; liked?: number }[] => [] };
+export function autoPool(s: Game) { if (!s.setup.poolTouched) s.setup.pool = E.recommend(Math.max(5, Math.min(40, Math.max(s.players.length, s.setup.targetN || 10))), s.setup.style, s.setup.seed, s, taste.history()).pool; }
 export function roleCount() { return E.poolList(A.s.setup.pool).length; }
 export function afterPlayersChange(s: Game) {
   s.setup.dealt = false; s.setup.revealed = false;

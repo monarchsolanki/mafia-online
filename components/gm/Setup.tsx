@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import E from "@/lib/engine/engine";
-import { A, emit, effN, roleCount, role, plural, teamName } from "@/lib/client/store";
+import { A, taste, emit, effN, roleCount, role, plural, teamName } from "@/lib/client/store";
 import * as act from "@/lib/client/actions";
 import { Online } from "@/lib/client/online";
 import { Cloud } from "@/lib/client/cloud";
@@ -12,6 +12,7 @@ import { OnlinePanel } from "./OnlinePanel";
 
 const STEPS = ["Players", "Roles", "Rules", "Deal", "Reveal"];
 const STYLE_HINT: Record<string, string> = {
+  basic: "The classic game: Mafia, Doctor, Police and Villagers, with the counts tuned for your table. Add roles yourself, or try a twist below.",
   beginner: "Only Villagers, Doctor, Police, Bodyguard, Mafia and Jester — ideal for a first game.",
   classic: "The familiar Town investigators against a Godfather and plain Mafia members.",
   balanced: "A mix tuned to sit inside the fair balance band, with a solo killer from 11 players.",
@@ -82,7 +83,7 @@ export function Balance({ pool }: { pool: Record<string, number> }) {
 
 function Recommend() {
   const s = A.s; const n = s.phase === "setup" && A.ui.setupStep === 0 ? effN() : Math.max(5, s.players.length);
-  const st = s.setup.style; const rec = E.recommend(n, st, s.setup.seed, s);
+  const st = s.setup.style; const rec = E.recommend(n, st, s.setup.seed, s, taste.history());
   const k = (o: Record<string, number>) => JSON.stringify(Object.keys(o).filter(x => o[x] > 0).sort().map(x => [x, o[x]]));
   const inUse = k(rec.pool) === k(s.setup.pool);
   return (
@@ -93,11 +94,31 @@ function Recommend() {
       </div>
       <RoleChips pool={rec.pool} />
       <Balance pool={rec.pool} />
-      <p className="tiny muted" style={{ marginTop: 12 }}>{STYLE_HINT[st]}</p>
+      <p className={st === "foryou" ? "small" : "tiny muted"} style={{ marginTop: 12 }}>{st === "foryou" ? rec.note : STYLE_HINT[st]}</p>
       <div className="row" style={{ marginTop: 14 }}>
         {!inUse && <button className="btn sm primary" onClick={act.recUse}><Icon name="check" size="sm" />Use this</button>}
-        <button className="btn sm" onClick={act.recReroll}><Icon name="dice" size="sm" />Shuffle</button>
+        {st !== "basic" && <button className="btn sm" onClick={act.recReroll}><Icon name="dice" size="sm" />Shuffle</button>}
       </div>
+    </div>
+  );
+}
+
+/** One small change per game, picked from roles the group hasn't played lately. Never forced. */
+function Twist() {
+  const s = A.s; if (!roleCount()) return null;
+  const list = act.twists(); if (!list.length) return null;
+  const t = list[(A.ui.twistIdx || 0) % list.length];
+  return (
+    <div className="well">
+      <div className="spread"><h2 className="subtitle">Tonight’s twist</h2><span className="small muted">Optional</span></div>
+      <p className="title" style={{ marginTop: 10 }}>Swap one {t.removeName} for the {t.addName}</p>
+      <p className="small" style={{ marginTop: 6 }}>{t.short}</p>
+      <p className="small muted" style={{ marginTop: 4 }}>{t.why} Balance after the swap: {t.balance.label.toLowerCase()}.</p>
+      <div className="row" style={{ marginTop: 14 }}>
+        <button className="btn sm primary" onClick={() => act.twistApply(t)}><Icon name="swap" size="sm" />Swap it in</button>
+        {list.length > 1 && <button className="btn sm" onClick={act.twistNext}><Icon name="refresh" size="sm" />Another idea</button>}
+      </div>
+      {s.setup.style !== "basic" && <p className="tiny muted" style={{ marginTop: 10 }}>Changes exactly one role in your list, so nobody has a new rulebook to learn.</p>}
     </div>
   );
 }
@@ -184,6 +205,7 @@ function StepRoles() {
       <h1 className="display">Choose the roles</h1>
       <p className="lead" style={{ marginTop: 10 }}>Start from the suggestion or build your own. Balance is advice only.</p>
       <section className="section"><Recommend /></section>
+      <section className="section"><Twist /></section>
 
       <section className="section">
         <div className="section-head"><h2 className="title">Your role list</h2><span className="small num" style={{ color: diff === 0 ? "var(--ink)" : "var(--accent)", fontWeight: 650 }}>{R} of {n}</span></div>

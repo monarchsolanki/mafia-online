@@ -85,6 +85,8 @@ export const ICONS: Record<string, string> = {
   flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
   bug: '<rect x="7" y="7" width="10" height="13" rx="5"/><path d="M12 7v13M3 12h4M17 12h4M4 7l3 2M20 7l-3 2M4 19l3-2M20 19l-3-2M9 4l1.5 2M15 4l-1.5 2"/>',
   hourglass: '<path d="M6 3h12M6 21h12M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9s10 4 10 9"/>',
+  thumbup: '<path d="M7 11v9H4v-9h3Z"/><path d="M7 11l4-7c1.4 0 2.3 1.2 2 2.6L12.4 10H18a2 2 0 0 1 2 2.3l-1.1 6A2 2 0 0 1 16.9 20H7"/>',
+  thumbdown: '<path d="M7 13V4H4v9h3Z"/><path d="M7 13l4 7c1.4 0 2.3-1.2 2-2.6L12.4 14H18a2 2 0 0 0 2-2.3l-1.1-6A2 2 0 0 0 16.9 4H7"/>',
   chat: '<path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4A8 8 0 1 1 20 12Z"/>',
   send: '<path d="M4 12 20 4l-4 16-4-7-8-1Z"/><path d="m12 13 8-9"/>',
   phone: '<rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/>',

@@ -1,8 +1,9 @@
 "use client";
 // Everything the Game Master can do. Each function is the old app's handler, unchanged in behaviour.
 import E from "@/lib/engine/engine";
+import { recordPlayed, playedHistory, rateGame } from "./history";
 import type { Game, NightStep } from "@/lib/engine/engine";
-import { A, emit, cmd, save, savePrefs, saveLibrary, setupMut, toast, confirmSheet, top0, resetUi, lastHist, effN, autoPool, roleCount, afterPlayersChange, plural, P, type View } from "./store";
+import { A, taste, emit, cmd, save, savePrefs, saveLibrary, setupMut, toast, confirmSheet, top0, resetUi, lastHist, effN, autoPool, roleCount, afterPlayersChange, plural, P, type View } from "./store";
 import { Sound } from "./sound";
 import { Cloud } from "./cloud";
 
@@ -110,7 +111,23 @@ export function deletePreset(i: number) {
 /* ---------- roles and rules ---------- */
 export function recStyle(v: string) { setupMut(s => { s.setup.style = v; s.setup.seed = 1; s.setup.poolTouched = false; s.setup.dealt = false; autoPool(s); }); }
 export function recReroll() { setupMut(s => { s.setup.seed = (s.setup.seed || 1) + 1; if (!s.setup.poolTouched) { autoPool(s); s.setup.dealt = false; } }); Sound.tick(); }
-export function recUse() { setupMut(s => { const n = A.ui.setupStep === 0 ? effN() : Math.max(5, s.players.length); s.setup.pool = E.recommend(n, s.setup.style, s.setup.seed, s).pool; s.setup.poolTouched = false; s.setup.dealt = false; }); toast("Recommended setup applied"); }
+/** The Game Master's verdict on a finished game: 1 loved it, -1 not for us, 0 cleared. Saved with the game. */
+export function rate(v: number) {
+  const s = A.s as Game & { rating?: number }; s.rating = v || undefined; rateGame(s, v); save(); emit();
+  if (v) toast(v === 1 ? "Noted — more games like this" : "Noted — fewer games like this");
+}
+/* ---------- tonight's twist: change one role ---------- */
+export function twists() { const s = A.s; return E.suggestTwists(s, s.setup.pool, playedHistory(), Math.max(5, s.players.length || effN())); }
+export function twistNext() { A.ui.twistIdx = (A.ui.twistIdx || 0) + 1; emit(); }
+export function twistApply(t: { add: string; remove: string; addName: string; removeName: string }) {
+  setupMut(s => {
+    const p = s.setup.pool; if (!p[t.remove]) return;
+    p[t.remove]--; if (!p[t.remove]) delete p[t.remove]; p[t.add] = (p[t.add] || 0) + 1;
+    s.setup.poolTouched = true; s.setup.dealt = false;
+  });
+  A.ui.twistIdx = 0; toast(`Swapped one ${t.removeName} for the ${t.addName}`);
+}
+export function recUse() { setupMut(s => { const n = A.ui.setupStep === 0 ? effN() : Math.max(5, s.players.length); s.setup.pool = E.recommend(n, s.setup.style, s.setup.seed, s, taste.history()).pool; s.setup.poolTouched = false; s.setup.dealt = false; }); toast("Recommended setup applied"); }
 export function poolInc(id: string) { setupMut(s => { s.setup.pool[id] = (s.setup.pool[id] || 0) + 1; s.setup.poolTouched = true; s.setup.dealt = false; }); Sound.tick(); }
 export function poolDec(id: string) { setupMut(s => { s.setup.pool[id] = Math.max(0, (s.setup.pool[id] || 0) - 1); if (!s.setup.pool[id]) delete s.setup.pool[id]; s.setup.poolTouched = true; s.setup.dealt = false; }); Sound.tick(); }
 export function poolFill() { setupMut(s => { const d = s.players.length - roleCount(); if (d > 0) { s.setup.pool.villager = (s.setup.pool.villager || 0) + d; s.setup.poolTouched = true; s.setup.dealt = false; } }); }
@@ -159,6 +176,7 @@ function nightFalls() { Sound.night(); A.ui.overlay = { type: "cine", kind: "nig
 export function startGame() {
   if (!A.s.setup.dealt) { toast("Deal the roles first."); return; }
   if (!cmd("Start the game", s => E.startGame(s))) return;
+  recordPlayed(A.s);
   Object.assign(A.ui, { view: "command", nightIdx: 0, draft: null }); nightFalls(); top0(); emit();
 }
 
@@ -332,7 +350,7 @@ export function stalemateDraw() { confirmSheet({ title: "End the game as a draw?
 export function stalemateAck() { cmd("Play on through stalemate", s => E.ackStalemate(s)); }
 export function endGameNow() { confirmSheet({ title: "End the game now?", body: "This finishes the game immediately. If no faction has won, it is recorded as a draw. You can still undo.", ok: "End the game", danger: true, onOk: () => { if (cmd("End the game", s => E.endGame(s))) { A.ui.view = "command"; winScene(); emit(); } } }); }
 export function playAgain() {
-  if (!cmd("Play again", s => { const n = E.restartGame(s, "setup"); n.setup.seed = (s.setup.seed || 1) + 1; if (!n.setup.poolTouched) n.setup.pool = E.recommend(n.players.length, n.setup.style, n.setup.seed, n).pool; return n; })) return;
+  if (!cmd("Play again", s => { const n = E.restartGame(s, "setup"); n.setup.seed = (s.setup.seed || 1) + 1; if (!n.setup.poolTouched) n.setup.pool = E.recommend(n.players.length, n.setup.style, n.setup.seed, n, taste.history()).pool; return n; })) return;
   resetUi(); Object.assign(A.ui, { setupStep: 1, view: "command" }); top0(); emit();
 }
 export function rematch() {

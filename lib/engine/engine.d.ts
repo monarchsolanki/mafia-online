@@ -110,6 +110,9 @@ export interface PlayerCard {
   abilities: string[]; teammates: { name: string; role: string; alive: boolean }[]; target: string | null; lover: string | null;
 }
 
+export interface PlayedGame { id?: string; at?: number; n?: number; roles: Record<string, number>; liked?: number }
+export interface Twist { add: string; remove: string; addName: string; removeName: string; short: string; why: string; balance: { score: number; label: string; fair: boolean } }
+
 declare const Engine: {
   KINDS: Record<string, { prio: number; visits: boolean; target: string; verb: string; info?: boolean; day?: boolean }>;
   CUSTOM_KINDS: string[];
@@ -135,6 +138,8 @@ declare const Engine: {
   clueRoles(s: Game, shownId: string, key: string, hide?: string | null): { id: string; name: string }[];
   clueShown(s: Game, p: Player, ctx: { disguised: Set<string>; framed: Set<string> }, key: string): { id: string; hide: string | null };
   evilRole(r: Role): boolean;
+  basicPool(n: number, s?: Game | null): Record<string, number>;
+  suggestTwists(s: Game | null, pool: Record<string, number>, history: PlayedGame[], n: number): Twist[];
   newGame(): Game;
   addPlayer(s: Game, name: string): Player;
   getP(s: Game, id: string): Player | undefined;
@@ -144,7 +149,9 @@ declare const Engine: {
   assignRoles(s: Game): void;
   finalizeAssignment(s: Game): void;
   balanceOf(s: Game | null, pool: Record<string, number>): { score: number; label: string; counts: { town: number; mafia: number; neutral: number }; n: number; fair: boolean };
-  recommend(n: number, style?: string, seed?: number, s?: Game | null): { pool: Record<string, number>; balance: any; seats: any };
+  recommend(n: number, style?: string, seed?: number, s?: Game | null, history?: PlayedGame[] | null): { pool: Record<string, number>; balance: any; seats: any; note?: string };
+  forYou(s: Game | null, n: number, history: PlayedGame[], seed?: number): { pool: Record<string, number>; balance: any; liked: string[]; fresh: string | null; note: string };
+  tasteOf(history: PlayedGame[]): { taste: Record<string, number>; likedGames: number; rated: number; games: number };
   seats(n: number, style: string): { mafia: number; neutral: number; killers: number; town: number };
   nightSteps(s: Game): NightStep[];
   nightAbilities(s: Game, p: Player): Ability[];

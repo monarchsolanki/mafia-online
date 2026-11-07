@@ -165,7 +165,9 @@ export const Cloud = {
     if (!s.cloudId) { s.cloudId = uuid(); LS.set("omerta.game.v1", { s: A.s, hist: A.hist.slice(-25) }); }
     const sig = JSON.stringify(s); if (sig === this.lastGameSig) return;
     const names = s.players.map(p => p.name);
-    const meta = { phase: s.phase, night: s.night, day: s.day, players: s.players.length, alive: s.players.filter(p => p.alive).length, names: names.slice(0, 5), line: phaseLine(s), faction: s.result ? s.result.faction : null };
+    const roles: Record<string, number> = {}; for (const r of (s.initialRoles || [])) if (r.roleId) roles[r.roleId] = (roles[r.roleId] || 0) + 1;
+    const meta = { phase: s.phase, night: s.night, day: s.day, players: s.players.length, alive: s.players.filter(p => p.alive).length, names: names.slice(0, 5), line: phaseLine(s), faction: s.result ? s.result.faction : null,
+      gid: s.id, startedAt: s.startedAt, roles, liked: (s as Game & { rating?: number }).rating }; // feeds "For you" and the twist on other devices
     try {
       const it = await this.put("game", s.cloudId, `${s.players.length} players · ${phaseLine(s)}`, meta, s);
       this.lastGameSig = sig; this.upsertItem(it);
