@@ -110,7 +110,7 @@ export interface PlayerCard {
   abilities: string[]; teammates: { name: string; role: string; alive: boolean }[]; target: string | null; lover: string | null;
 }
 
-export interface PlayedGame { id?: string; at?: number; n?: number; roles: Record<string, number>; liked?: number }
+export interface PlayedGame { id?: string; at?: number; n?: number; roles: Record<string, number>; liked?: number; saved?: boolean }
 export interface Twist { add: string; remove: string; addName: string; removeName: string; short: string; why: string; balance: { score: number; label: string; fair: boolean } }
 
 declare const Engine: {
@@ -151,7 +151,7 @@ declare const Engine: {
   balanceOf(s: Game | null, pool: Record<string, number>): { score: number; label: string; counts: { town: number; mafia: number; neutral: number }; n: number; fair: boolean };
   recommend(n: number, style?: string, seed?: number, s?: Game | null, history?: PlayedGame[] | null): { pool: Record<string, number>; balance: any; seats: any; note?: string };
   forYou(s: Game | null, n: number, history: PlayedGame[], seed?: number): { pool: Record<string, number>; balance: any; liked: string[]; fresh: string | null; note: string };
-  tasteOf(history: PlayedGame[]): { taste: Record<string, number>; likedGames: number; rated: number; games: number };
+  tasteOf(history: PlayedGame[]): { taste: Record<string, number>; likedGames: number; rated: number; games: number; saved: number };
   seats(n: number, style: string): { mafia: number; neutral: number; killers: number; town: number };
   nightSteps(s: Game): NightStep[];
   nightAbilities(s: Game, p: Player): Ability[];
