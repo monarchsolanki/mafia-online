@@ -7,6 +7,7 @@ import { Hold } from "@/components/ui/Hold";
 import { RoleCard } from "@/components/fx/RoleCard";
 import { DeathScene } from "@/components/fx/DeathScene";
 import { VoteReveal, LastWords } from "@/components/fx/VoteDrama";
+import { StoryShare } from "@/components/fx/StoryShare";
 import { haptic } from "@/lib/client/sound";
 import { ASK, SLOT_LABELS } from "@/lib/client/phrases";
 
@@ -432,6 +433,7 @@ function Ended({ r }: { r: any }) {
         <h1 className="mega phase-title">{r.factionName} {r.faction === "draw" || String(r.faction).startsWith("solo:") ? "wins" : "win"}.</h1>
         <p className="lead" style={{ marginTop: 14 }}>{r.reason}</p>
       </section>
+      {r.story && <StoryShare story={r.story} onToast={toast} />}
       <section className="section">
         <h2 className="title">Winners</h2>
         <div className="row" style={{ marginTop: 10, gap: 6 }}>{r.winners.length ? r.winners.map((w: any, i: number) => <span key={i} className="chip solid">{w.name}</span>) : <span className="muted">Nobody won.</span>}</div>

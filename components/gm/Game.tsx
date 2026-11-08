@@ -1,10 +1,11 @@
 "use client";
 import E from "@/lib/engine/engine";
 import type { NightStep } from "@/lib/engine/engine";
-import { A, emit, undo, P, role, plural, fmtDur, teamName } from "@/lib/client/store";
+import { A, emit, undo, P, role, plural, fmtDur, teamName, toast } from "@/lib/client/store";
 import { Online, phoneMode } from "@/lib/client/online";
 import * as act from "@/lib/client/actions";
 import { Icon } from "@/components/ui/Icon";
+import { StoryShare } from "@/components/fx/StoryShare";
 import { Dock } from "@/components/ui/Dock";
 import { PlayerTile, StatsStrip } from "./Players";
 
@@ -410,6 +411,7 @@ function Ended() {
       <p className="lead" style={{ marginTop: 16 }}>{r.reason}</p>
     </section>
     <Rate />
+    {(() => { const st = E.story(s); return st ? <StoryShare story={st} onToast={toast} /> : null; })()}
     <div className="stack" style={{ marginTop: 18 }}>
       <button className="btn block primary" onClick={act.rematch}><Icon name="dice" />Rematch — reshuffle and go</button>
       <button className="btn block" onClick={act.playAgain}><Icon name="refresh" />Play again with these players</button>

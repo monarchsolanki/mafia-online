@@ -112,6 +112,7 @@ export interface PlayerCard {
 }
 
 export interface PlayedGame { id?: string; at?: number; n?: number; roles: Record<string, number>; liked?: number; saved?: boolean; result?: { faction: string; players?: [string, string, number, number][] } }
+export interface GameStory { headline: string; reason: string; faction: string; winners: string[]; players: number; nights: number; chapters: { label: string; lines: string[] }[]; highlights: string[] }
 export interface Twist { add: string; remove: string; addName: string; removeName: string; short: string; why: string; balance: { score: number; label: string; fair: boolean } }
 
 declare const Engine: {
@@ -139,6 +140,7 @@ declare const Engine: {
   clueRoles(s: Game, shownId: string, key: string, hide?: string | null): { id: string; name: string }[];
   clueShown(s: Game, p: Player, ctx: { disguised: Set<string>; framed: Set<string> }, key: string): { id: string; hide: string | null };
   evilRole(r: Role): boolean;
+  story(s: Game): GameStory | null;
   seatList(pool: Record<string, number>): string[];
   drunkCards(pool: Record<string, number>): number;
   setDrunk(s: Game, pid: string, on: boolean): Game;

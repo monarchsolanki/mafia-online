@@ -264,6 +264,27 @@ const invCheck = (s, inv, target) => { const act = { key: inv.id, actor: inv.id,
   ok(E.seatList({ villager: 3 }).length === 3, 'drunk: pools without a Drunk are unchanged');
 }
 
+/* ---------- The story of the game ---------- */
+{
+  let s = E.newGame();
+  ['Asha', 'Bilal', 'Chen', 'Dina', 'Eli'].forEach(n => E.addPlayer(s, n));
+  const roles = ['mafia', 'doctor', 'police', 'villager', 'villager'];
+  s.players.forEach((p, i) => E.setRole(s, p, roles[i]));
+  E.startGame(s);
+  const [maf, doc, , vic] = s.players;
+  ok(E.story(s) === null, 'story: none before the game ends');
+  E.setAction(s, { key: doc.id, actor: doc.id, ab: E.nightAbilities(s, doc)[0].id, targets: [vic.id], opts: {} });
+  E.setAction(s, { key: 'mafia', actor: maf.id, ab: 'factionKill', targets: [vic.id], opts: {} });
+  s = E.resolveNight(s); E.startDay(s);
+  E.quickExecute(s, s.players[0].id); E.endGame(s, s.winPrompt);
+  const st = E.story(s);
+  ok(st && st.faction === 'town' && /Town/.test(st.headline), 'story: headline names the winners');
+  ok(st && st.chapters[0].label === 'Night 1' && st.chapters[0].lines.some(l => /Bilal \(Doctor\) healed Dina, who survived an attack/.test(l)), 'story: the save is told');
+  ok(st && st.chapters.some(c => c.label === 'Day 1' && c.lines.some(l => /executed Asha \(Mafia\)/.test(l))), 'story: the execution is told');
+  ok(st && st.highlights.some(h => /Bilal the Doctor saved 1 life/.test(h)), 'story: the healer is a highlight');
+  ok(st && st.players === 5 && st.nights === 1, 'story: table size and nights');
+}
+
 test("every engine rule check passes", () => {
   expect(fails).toEqual([]);
   expect(pass).toBeGreaterThan(50);
