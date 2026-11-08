@@ -66,6 +66,7 @@ export function boot() {
 }
 export function migrate(s: Game) {
   for (const r of A.customLib) if (!s.customRoles[r.id]) s.customRoles[r.id] = r;
+  if (s.dayState && s.dayState.lastWords) delete s.dayState.lastWords; // a countdown left behind by a reload: its screen is gone, so release the phones
   s.setup.disabled = A.prefs.disabled.slice();
   if ((s.config.cfgv || 1) < 2) { s.config.godfatherInnocent = false; s.config.nkSuspicious = false; s.config.cfgv = 2; } // Police: thumbs up only for Mafia
   if ((s.config.cfgv || 1) < 3) { s.config.mayorWeight = "auto"; s.config.mayorOnce = false; s.config.cfgv = 3; } // Mayor: 3 votes above 7 alive, then 2

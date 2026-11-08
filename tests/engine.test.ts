@@ -285,6 +285,59 @@ const invCheck = (s, inv, target) => { const act = { key: inv.id, actor: inv.id,
   ok(st && st.players === 5 && st.nights === 1, 'story: table size and nights');
 }
 
+/* ---------- review fixes: the Drunk card, the story wording, forced endings ---------- */
+{
+  const deal8 = (pool: Record<string, number>) => { const s = E.newGame(); for (let i = 0; i < 8; i++) E.addPlayer(s, 'R' + i); s.setup.pool = pool; E.assignRoles(s); s.setup.dealt = true; return s; };
+  const POOL = { mafia: 2, doctor: 1, police: 1, vigilante: 1, villager: 3, drunk: 1 };
+  // restarts keep the Drunk card
+  let s = deal8(Object.assign({}, POOL));
+  const re = E.restartGame(s, 'reshuffle');
+  ok(re.setup.pool.drunk === 1 && re.players.filter(p => p.meta.drunk).length === 1, 'review: a reshuffled rematch keeps the Drunk card');
+  ok(E.restartGame(s, 'setup').setup.pool.drunk === 1, 'review: play again with these players keeps the Drunk card');
+  // the Game Master's choice survives hand-picking a role
+  s = deal8(Object.assign({}, POOL));
+  const cop = s.players.find(p => p.roleId === 'police'); const was = s.players.find(p => p.meta.drunk);
+  E.setDrunk(s, was.id, false); E.setDrunk(s, cop.id, true);
+  const v = s.players.find(p => p.roleId === 'villager'); const d = s.players.find(p => p.roleId === 'doctor');
+  v.roleId = 'doctor'; d.roleId = 'villager'; E.finalizeAssignment(s);
+  ok(s.players.filter(p => p.meta.drunk).map(p => p.id).join() === cop.id, 'review: hand-picking a role keeps the Drunk where the Game Master put it');
+  ok(s.initialRoles.find(r => r.id === cop.id).drunk === true, 'review: the dealt record keeps it too');
+  // only roles that act at night get the card at random
+  for (let k = 0; k < 20; k++) {
+    const t = deal8({ mafia: 2, mayor: 1, prince: 1, doctor: 1, villager: 3, drunk: 1 });
+    const who = t.players.find(p => p.meta.drunk);
+    if (!who || who.roleId !== 'doctor') { fails.push('review: the Drunk landed on ' + (who ? who.roleId : 'nobody') + ' instead of the Doctor'); break; }
+  }
+  ok(E.setupWarnings(E.newGame(), { mafia: 2, mayor: 1, villager: 5, drunk: 1 }).some(w => /night action/.test(w)), 'review: a Drunk with no night-acting Town role is warned about');
+  // a failed drunk action is spent like a real one
+  let g = E.newGame(); ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].forEach(n => E.addPlayer(g, n));
+  ['mafia', 'mafia', 'veteran', 'doctor', 'villager', 'villager', 'villager', 'villager'].forEach((id, i) => E.setRole(g, g.players[i], id));
+  g.initialRoles = g.players.map(p => ({ id: p.id, roleId: p.roleId, team: p.team }));
+  const vet = g.players[2]; E.setDrunk(g, vet.id, true); E.startGame(g);
+  for (let i = 0; i < 6 && !E.drunkFails(g, vet.id, g.night); i++) { g = E.resolveNight(g); E.startDay(g); E.startNight(g); }
+  ok(E.drunkFails(g, vet.id, g.night), 'review: found a night the drunk Veteran fails');
+  const ab = E.nightAbilities(g, g.players[2])[0]; const before = g.players[2].uses[ab.id];
+  E.setAction(g, { key: vet.id, actor: vet.id, ab: ab.id, targets: [vet.id], opts: {} });
+  g = E.resolveNight(g);
+  ok(g.players[2].uses[ab.id] === before - 1, 'review: a drunk Veteran\'s failed alert still uses one up');
+  // changing a drunk player's role keeps the card
+  E.manualSetRole(g, vet.id, 'doctor'); ok(E.getP(g, vet.id).meta.drunk === true, 'review: a role change keeps the Drunk card');
+  // chaos suggestions never turn the Drunk into a seat
+  let bad = 0; for (let n = 8; n <= 40; n += 4) for (let seed = 1; seed <= 6; seed++) { const p = E.recommend(n, 'chaos', seed).pool; if (E.seatList(p).length !== n) bad++; }
+  ok(bad === 0, 'review: chaos suggestions always fill every seat');
+  // the story reads well whatever the cause of death
+  let st = E.newGame(); ['Ann', 'Ben', 'Cal', 'Dee', 'Eve'].forEach(n => E.addPlayer(st, n));
+  ['mafia', 'vigilante', 'villager', 'villager', 'villager'].forEach((id, i) => E.setRole(st, st.players[i], id));
+  E.startGame(st); st = E.resolveNight(st); E.startDay(st);
+  E.manualKill(st, st.players[1].id, 'died of guilt'); E.manualKill(st, st.players[2].id, 'left early');
+  E.quickExecute(st, st.players[0].id); E.endGame(st, st.winPrompt);
+  const lines = E.story(st).chapters.flatMap(c => c.lines).join(' ');
+  ok(/Ben \(Vigilante\) died of guilt\./.test(lines) && /Cal \(Villager\) died \(left early\)\./.test(lines) && !/was died/.test(lines), 'review: story death lines are grammatical');
+  // a game stopped before anyone won is marked as forced
+  let f = dayWith(7); E.endGame(f); ok(f.result.forced === true, 'review: ending early marks the result as forced');
+  f = dayWith(7); E.quickExecute(f, f.players[6].id); E.endGame(f, f.winPrompt); ok(!f.result.forced, 'review: a real win is not forced');
+}
+
 test("every engine rule check passes", () => {
   expect(fails).toEqual([]);
   expect(pass).toBeGreaterThan(50);

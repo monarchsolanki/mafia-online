@@ -109,13 +109,15 @@ export function importSetup(sh: { name: string; pool: Record<string, number>; cu
   for (const d of sh.custom || []) {
     const existing = Object.values(A.s.customRoles).find(r => r.name === d.name) || A.customLib.find(r => r.name === d.name);
     if (existing) { map[d.id] = existing.id; continue; }
-    let r = E.makeCustomRole(d); let k = 2;
-    while (E.LIBMAP[r.id] || A.s.customRoles[r.id]) { r = E.makeCustomRole(Object.assign({}, d, { idSuffix: String(k++) })); }
+    // only the fields the custom-role editor itself offers; decodeSetup has already checked their values
+    const def = { name: d.name, icon: d.icon, team: d.team, kind: d.kind, uses: d.uses, attack: d.attack, nights: d.nights, def: d.def, rbImmune: d.rbImmune, sus: d.sus, desc: d.desc };
+    let r = E.makeCustomRole(def); let k = 2;
+    while (E.LIBMAP[r.id] || A.s.customRoles[r.id]) { r = E.makeCustomRole(Object.assign({}, def, { idSuffix: String(k++) })); }
     Cloud.saveRole(r); map[d.id] = r.id;
   }
   const pool: Record<string, number> = {};
   for (const [id, n] of Object.entries(sh.pool)) pool[map[id] || id] = (pool[map[id] || id] || 0) + n;
-  Cloud.saveSetup({ name: sh.name, n: E.poolList(pool).length, pool, style: "custom" });
+  Cloud.saveSetup({ name: sh.name, n: E.seatList(pool).length, pool, style: "custom" }); // the Drunk card is not a seat
   if (useNow && A.s.phase === "setup") {
     setupMut(s => { s.setup.pool = E.clone(pool); s.setup.poolTouched = true; s.setup.dealt = false; });
     Object.assign(A.ui, { view: "command", setupStep: 1, sheet: null }); top0(); emit();
@@ -361,7 +363,7 @@ function revealVotes(then: () => void) {
   const ballots = s.players.filter(p => ds.votes[p.id] !== undefined).map(p => ({ from: p.name, to: nm(ds.votes[p.id]), w: E.voteWeight(s, p) }));
   const outcome = r.type === "execute" ? `${nm(r.target)} is to be executed.` : r.type === "revote" ? `A tie between ${r.tied.map(nm).join(" and ")} — they face a revote.` : r.type === "random" ? `A tie between ${r.tied.map(nm).join(" and ")} — one is picked at random.` : r.reason || "Nobody is executed.";
   if (!ballots.length) { then(); return; }
-  ds.reveal = { key: `D${s.day}R${ds.round}`, round: ds.round, ballots, outcome }; save();
+  ds.reveal = { key: `D${s.day}R${ds.round}-${Date.now().toString(36)}`, round: ds.round, ballots, outcome }; save(); // unique, so a corrected re-count is shown again
   A.ui.overlay = { type: "votes", ballots, outcome, round: ds.round, then }; emit();
 }
 export function finishVotes() { const ov = A.ui.overlay; A.ui.overlay = null; emit(); if (ov && ov.then) ov.then(); }

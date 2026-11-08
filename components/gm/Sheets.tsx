@@ -327,7 +327,7 @@ function ShareSetup({ i }: { i: number }) {
   </>);
 }
 function ImportSetup({ sh }: { sh: SharedSetup }) {
-  const n = E.poolList(sh.pool).length; const name = (id: string) => { const c = (sh.custom || []).find(x => x.id === id); return c ? c.name : (E.getRole(A.s, id) || { name: id }).name; };
+  const n = E.seatList(sh.pool).length; const name = (id: string) => { const c = (sh.custom || []).find(x => x.id === id); return c ? c.name : (E.getRole(A.s, id) || { name: id }).name; };
   return (<>
     <Head title="A setup was shared with you" icon="share" />
     <p className="title">{sh.name}</p>

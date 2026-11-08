@@ -317,8 +317,8 @@ function StepDeal() {
         <section className="section well">
           <h2 className="subtitle">The Drunk card</h2>
           <p className="small muted" style={{ marginTop: 4 }}>Dealt at random onto a Town power role. They keep their role and never learn they are drunk: 80% of nights their action fails and their information is wrong. Move it to anyone you like.</p>
-          {(drunks.length ? drunks : [null]).slice(0, Math.max(1, cards)).map((d, k) => (
-            <label key={k} className="field" style={{ marginTop: 12 }}><span>{cards > 1 ? `Drunk ${k + 1}` : "Drunk"}</span>
+          {Array.from({ length: Math.max(cards, drunks.length) }, (_, k) => drunks[k] || null).map((d, k) => (
+            <label key={k} className="field" style={{ marginTop: 12 }}><span>{cards > 1 || drunks.length > 1 ? `Drunk ${k + 1}` : "Drunk"}</span>
               <select value={d ? d.id : ""} onChange={e => act.moveDrunk(d ? d.id : null, e.target.value)}>
                 {!d && <option value="">Nobody yet</option>}
                 {s.players.map(p => <option key={p.id} value={p.id} disabled={!!p.meta.drunk && (!d || p.id !== d.id)}>{p.name}{show || A.ui.peek[p.id] ? ` — ${p.roleId ? role(p.roleId).name : "no role"}` : ""}</option>)}
