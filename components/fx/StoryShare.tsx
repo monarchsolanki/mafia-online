@@ -14,7 +14,12 @@ export function StoryShare({ story, onToast }: { story: GameStory; onToast?: (m:
     renderStory(story).then(b => { if (!live) return; made = URL.createObjectURL(b); setBlob(b); setUrl(made); }).catch(e => { if (live) setErr(e.message); });
     return () => { live = false; if (made) URL.revokeObjectURL(made); };
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
-  const share = async () => { if (!blob) return; try { const r = await shareStoryImage(blob, story); if (r === "saved" && onToast) onToast("Image saved — share it from your photos"); } catch { /* cancelled */ } };
+  const saved = () => onToast && onToast("Image saved — share it from your photos");
+  const share = async () => {
+    if (!blob) return;
+    try { if ((await shareStoryImage(blob, story)) === "saved") saved(); }
+    catch (e) { if ((e as { name?: string })?.name === "AbortError") return; saveStoryImage(blob); saved(); } // the sheet was closed / the share sheet is broken here: save it instead
+  };
   const wa = `https://wa.me/?text=${encodeURIComponent(storyText(story))}`;
   return (
     <section className="section well">

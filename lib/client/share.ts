@@ -24,13 +24,25 @@ export function encodeSetup(p: Preset): string {
 }
 export const setupLink = (p: Preset) => `${location.origin}/?setup=${encodeSetup(p)}`;
 
+// A custom role from a link is untrusted: keep only the editor's own fields, each within the editor's own limits.
+const TEAMS = ["town", "mafia", "solo", "neutral"], NIGHTS = ["all", "first", "notFirst", "even"];
+const int = (v: unknown, lo: number, hi: number, dflt: number) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : dflt; };
+function cleanDef(c: any): CustomDef | null {
+  if (!c || typeof c !== "object" || typeof c.id !== "string" || !/^c_[a-z0-9]{0,24}$/.test(c.id)) return null; // c_ alone: a name with no Latin letters
+  const name = typeof c.name === "string" ? c.name.trim().slice(0, 28) : ""; if (!name) return null;
+  const kind = c.kind === "none" || (E.CUSTOM_KINDS as string[]).includes(c.kind) ? c.kind : "none";
+  return { id: c.id, name, icon: typeof c.icon === "string" && /^[a-z0-9-]{1,24}$/.test(c.icon) ? c.icon : "star", team: TEAMS.includes(c.team) ? c.team : "town", kind,
+    uses: int(c.uses, 0, 9, 0), attack: int(c.attack, 1, 3, 1), nights: NIGHTS.includes(c.nights) ? c.nights : "all", def: int(c.def, 0, 3, 0), rbImmune: c.rbImmune === true,
+    sus: typeof c.sus === "boolean" ? c.sus : undefined, desc: typeof c.desc === "string" ? c.desc.slice(0, 300) : "" };
+}
+
 /** Reads a shared setup from a link, keeping only what makes sense; null if it isn't one. */
 export function decodeSetup(code: string): SharedSetup | null {
   try {
     if (!code || code.length > 6000) return null;
     const d = JSON.parse(unb64url(code));
     if (!d || d.v !== 1 || typeof d.name !== "string" || !d.pool || typeof d.pool !== "object") return null;
-    const custom: CustomDef[] = Array.isArray(d.custom) ? d.custom.slice(0, 10).filter((c: CustomDef) => c && typeof c.id === "string" && /^c_[a-z0-9]{1,24}$/.test(c.id) && typeof c.name === "string") : [];
+    const custom: CustomDef[] = Array.isArray(d.custom) ? d.custom.slice(0, 10).map(cleanDef).filter((c: CustomDef | null): c is CustomDef => !!c) : [];
     const known = (id: string) => !!E.LIBMAP[id] || custom.some(c => c.id === id);
     const pool: Record<string, number> = {}; let total = 0;
     for (const [id, n] of Object.entries(d.pool)) {

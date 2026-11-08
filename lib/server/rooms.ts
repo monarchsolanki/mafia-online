@@ -163,7 +163,8 @@ export async function handleRoom(store: Store, method: string, q: Record<string,
         try { for (const r of await store.listNightActions(code, view.night.key)) if ((view.night.steps || []).some((x: any) => x.key === r.step_key)) sent[r.step_key] = { ab: r.ab, targets: r.targets || [], opts: r.opts || {}, at: r.updated_at, mine: r.seat_id === seat.seat_id }; }
         catch { sent = {}; }
       }
-      return { version: room!.version, name: seat.name, view, publicView: pv, myVote: myVote ? myVote.target : null, chat, sent };
+      // now/at (both server time) let a phone tell how old the Game Master's last update is without trusting its own clock
+      return { version: room!.version, name: seat.name, view, publicView: pv, myVote: myVote ? myVote.target : null, chat, sent, now: Date.now(), at: room!.updated_at ? Date.parse(room!.updated_at) : null };
     }
     case "vote": {
       if (!isPost) fail(405, "Use POST.");

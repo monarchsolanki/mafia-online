@@ -26,6 +26,7 @@ type Scene = { kind: "announce" | "votes" | "execution" | "win"; key: string };
 const S = {
   v: 0, cfg: null as any, me: null as Me | null, data: null as any, stage: "loading" as "loading" | "join" | "pick" | "play",
   err: "", code: "", seats: null as any[] | null, pending: null as any, busy: false, reveal: null as null | "card" | "results",
+  lw: null as null | { key: string; end: number }, // the last-words deadline on this phone's own clock
   toast: "", sb: null as SupabaseClient | null, ch: null as RealtimeChannel | null, pollT: null as ReturnType<typeof setInterval> | null,
   scene: null as Scene | null, sending: "", leaving: false,
 };
@@ -96,6 +97,10 @@ async function load(markSeen?: boolean) {
     if (prev && prev.view.night && !j.view.night) S.sending = "";
     // last words follow the vote: once they start, the ballots count as seen
     const pvj = j.publicView || {};
+    if (pvj.lastWords) { // time left when the Game Master sent it, minus how long ago that was (server clock), on this phone's clock
+      const lk = `${pvj.lastWords.target}|${pvj.lastWords.endsAt}`;
+      if (!S.lw || S.lw.key !== lk) { const age = j.now && j.at ? Math.max(0, j.now - j.at) : 0; const left = typeof pvj.lastWords.left === "number" ? pvj.lastWords.left : pvj.lastWords.total * 1000; S.lw = { key: lk, end: Date.now() + Math.max(0, left - age) }; }
+    } else S.lw = null;
     if (pvj.lastWords && pvj.voteReveal) { const vk = `${S.me!.code}:${pvj.voteReveal.key}:v`; if (!seenScenes().includes(vk)) markScene(vk); if (S.scene && S.scene.kind === "votes") S.scene = null; }
     if (!S.scene) { const sc = nextScene(j); if (sc) { S.scene = sc; S.reveal = null; haptic(sc.kind === "win" ? [50, 30, 50, 30, 50] : [30, 40, 30]); } }
     emit();
@@ -542,7 +547,7 @@ export default function PlayerApp() {
   }, [theAct]);
 
   const lw = S.stage === "play" && S.data && S.data.publicView && S.data.publicView.lastWords;
-  if (lw) return <><LastWords name={lw.name} endsAt={lw.endsAt} total={lw.total} me={lw.target === S.data.view.id} /><Toast /></>;
+  if (lw) return <><LastWords name={lw.name} endsAt={S.lw ? S.lw.end : lw.endsAt} total={lw.total} me={lw.target === S.data.view.id} /><Toast /></>;
   if (S.stage === "play" && S.data && S.scene) return <><SceneStage /><Toast /></>;
   if (S.stage === "play" && S.data && S.reveal) return <><RevealStage /><Toast /></>;
   return (

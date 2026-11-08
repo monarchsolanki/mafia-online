@@ -41,7 +41,8 @@ export function publicView(s: Game): any {
   }
   // vote drama: the locked ballots, and the accused's last words while they run
   if (s.phase === "day" && ds && ds.reveal) pv.voteReveal = ds.reveal;
-  if (s.phase === "day" && ds && ds.lastWords && !ds.done) pv.lastWords = { target: ds.lastWords.target, name: E.pname(s, ds.lastWords.target), endsAt: ds.lastWords.endsAt, total: ds.lastWords.total };
+  // `left` is measured on this device at send time, so phones never compare clocks with the Game Master's
+  if (s.phase === "day" && ds && ds.lastWords && !ds.done) pv.lastWords = { target: ds.lastWords.target, name: E.pname(s, ds.lastWords.target), endsAt: ds.lastWords.endsAt, total: ds.lastWords.total, left: Math.max(0, ds.lastWords.endsAt - Date.now()) };
   if (s.phase === "ended" && s.result) pv.result = { factionName: s.result.factionName, faction: s.result.faction, reason: s.result.reason,
     winners: s.result.winners.map(w => ({ name: E.pname(s, w.id), why: w.why })),
     roles: s.players.map(p => ({ name: p.name, role: E.getRole(s, p.roleId).name, team: E.teamLabel(p), alive: p.alive, drunk: !!p.meta.drunk })), story: E.story(s) };

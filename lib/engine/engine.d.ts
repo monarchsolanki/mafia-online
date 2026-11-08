@@ -92,7 +92,7 @@ export interface Game {
   showdown: { faction: string; pending: string[]; endsAfterDay: number } | null;
   winPrompt: WinCheck | null;
   lastWin?: WinCheck | null;
-  result: { faction: string; factionName: string; reason: string; winners: { id: string; why: string }[] } | null;
+  result: { faction: string; factionName: string; reason: string; winners: { id: string; why: string }[]; forced?: boolean } | null;
   executions: number;
   initialRoles: { id: string; roleId: string; team: Team; target?: string | null; fake?: string | null; drunk?: boolean }[];
   nightUi?: { night: number; visited: Record<string, string>; phone?: Record<string, { by: string; pass?: boolean; ab?: string; targets?: string[]; waiting?: boolean }> };

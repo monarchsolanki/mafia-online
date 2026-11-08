@@ -78,7 +78,7 @@ export const Cloud = {
   /** The account's items become this device's lists. */
   adopt() {
     const by = (k: string) => this.items.filter(i => i.kind === k && i.data);
-    A.presets = by("setup").map(i => ({ id: i.id, name: i.name, n: i.data.n || E.poolList(i.data.pool || {}).length, pool: i.data.pool || {}, style: i.data.style || "balanced", updatedAt: i.updatedAt }));
+    A.presets = by("setup").map(i => ({ id: i.id, name: i.name, n: i.data.n || E.seatList(i.data.pool || {}).length, pool: i.data.pool || {}, style: i.data.style || "balanced", updatedAt: i.updatedAt }));
     A.groups = by("group").map(i => ({ id: i.id, name: i.name, players: i.data.players || [], updatedAt: i.updatedAt }));
     A.customLib = by("role").map(i => Object.assign({}, i.data, { cloudId: i.id }));
     for (const r of A.customLib) A.s.customRoles[r.id] = r;
