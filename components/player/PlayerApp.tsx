@@ -6,6 +6,8 @@ import { Icon } from "@/components/ui/Icon";
 import { Hold } from "@/components/ui/Hold";
 import { RoleCard } from "@/components/fx/RoleCard";
 import { DeathScene } from "@/components/fx/DeathScene";
+import { VoteReveal, LastWords } from "@/components/fx/VoteDrama";
+import { StoryShare } from "@/components/fx/StoryShare";
 import { haptic } from "@/lib/client/sound";
 import { ASK, SLOT_LABELS } from "@/lib/client/phrases";
 
@@ -20,7 +22,7 @@ const cleanCode = (c: string) => String(c || "").toUpperCase().replace(/[^A-Z]/g
 const cap = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
 
 type Me = { code: string; seat: string; token: string; name: string };
-type Scene = { kind: "announce" | "execution" | "win"; key: string };
+type Scene = { kind: "announce" | "votes" | "execution" | "win"; key: string };
 const S = {
   v: 0, cfg: null as any, me: null as Me | null, data: null as any, stage: "loading" as "loading" | "join" | "pick" | "play",
   err: "", code: "", seats: null as any[] | null, pending: null as any, busy: false, reveal: null as null | "card" | "results",
@@ -76,8 +78,10 @@ function nextScene(j: any): Scene | null {
   const pv = j.publicView || {}; const code = S.me!.code; const seen = seenScenes();
   if (pv.phase === "ended" && pv.result) { const k = `${code}:end:${pv.result.faction}`; return seen.includes(k) ? null : { kind: "win", key: k }; }
   if (pv.phase !== "day") return null;
+  // in the order they happened: the morning, the ballots, the execution
+  if (pv.announce) { const k = `${code}:D${pv.announce.day}:a`; if (!seen.includes(k)) return { kind: "announce", key: k }; }
+  if (pv.voteReveal && !pv.lastWords) { const k = `${code}:${pv.voteReveal.key}:v`; if (!seen.includes(k)) return { kind: "votes", key: k }; }
   if (pv.execution) { const k = `${code}:${pv.execution.key}:x`; if (!seen.includes(k)) return { kind: "execution", key: k }; }
-  else if (pv.announce) { const k = `${code}:D${pv.announce.day}:a`; if (!seen.includes(k)) return { kind: "announce", key: k }; }
   return null;
 }
 async function load(markSeen?: boolean) {
@@ -90,6 +94,9 @@ async function load(markSeen?: boolean) {
     if (before !== null && JSON.stringify(j.view.results || []) !== before && (j.view.results || []).length) haptic([60, 60, 60]);
     if (prev && prev.view.alive && !j.view.alive) haptic([100, 50, 100, 50, 200]);
     if (prev && prev.view.night && !j.view.night) S.sending = "";
+    // last words follow the vote: once they start, the ballots count as seen
+    const pvj = j.publicView || {};
+    if (pvj.lastWords && pvj.voteReveal) { const vk = `${S.me!.code}:${pvj.voteReveal.key}:v`; if (!seenScenes().includes(vk)) markScene(vk); if (S.scene && S.scene.kind === "votes") S.scene = null; }
     if (!S.scene) { const sc = nextScene(j); if (sc) { S.scene = sc; S.reveal = null; haptic(sc.kind === "win" ? [50, 30, 50, 30, 50] : [30, 40, 30]); } }
     emit();
   } catch (e: any) {
@@ -390,6 +397,7 @@ function SceneStage() {
   const sc = S.scene!; const pv = S.data.publicView || {};
   const done = () => { if (sc.key !== "replay") markScene(sc.key); S.scene = null; emit(); };
   if (sc.kind === "win") return <WinStage r={pv.result} onDone={done} />;
+  if (sc.kind === "votes" && pv.voteReveal) return <VoteReveal ballots={pv.voteReveal.ballots} outcome={pv.voteReveal.outcome} round={pv.voteReveal.round} onDone={done} />;
   if (sc.kind === "execution" && pv.execution) {
     const x = pv.execution;
     if (x.spared) return <DeathScene heading="The town has decided." deaths={[]} custom={`${x.name} was voted out — but survived. They are the Prince.`} sound={false} onDone={done} />;
@@ -425,6 +433,7 @@ function Ended({ r }: { r: any }) {
         <h1 className="mega phase-title">{r.factionName} {r.faction === "draw" || String(r.faction).startsWith("solo:") ? "wins" : "win"}.</h1>
         <p className="lead" style={{ marginTop: 14 }}>{r.reason}</p>
       </section>
+      {r.story && <StoryShare story={r.story} onToast={toast} />}
       <section className="section">
         <h2 className="title">Winners</h2>
         <div className="row" style={{ marginTop: 10, gap: 6 }}>{r.winners.length ? r.winners.map((w: any, i: number) => <span key={i} className="chip solid">{w.name}</span>) : <span className="muted">Nobody won.</span>}</div>
@@ -432,7 +441,7 @@ function Ended({ r }: { r: any }) {
       <section className="section">
         <h2 className="title">Every role</h2>
         <div className="list" style={{ marginTop: 6 }}>{r.roles.map((x: any, i: number) => (
-          <div className="li" key={i}><span className="grow"><b>{x.name}</b><span>{x.role} · {x.team}{x.alive ? "" : " · died"}</span></span>{!x.alive && <Icon name="skull" size="sm" />}</div>))}</div>
+          <div className="li" key={i}><span className="grow"><b>{x.name}</b><span>{x.role}{x.drunk ? " (drunk)" : ""} · {x.team}{x.alive ? "" : " · died"}</span></span>{!x.alive && <Icon name="skull" size="sm" />}</div>))}</div>
       </section>
     </>
   );
@@ -532,6 +541,8 @@ export default function PlayerApp() {
     return () => clearTimeout(t);
   }, [theAct]);
 
+  const lw = S.stage === "play" && S.data && S.data.publicView && S.data.publicView.lastWords;
+  if (lw) return <><LastWords name={lw.name} endsAt={lw.endsAt} total={lw.total} me={lw.target === S.data.view.id} /><Toast /></>;
   if (S.stage === "play" && S.data && S.scene) return <><SceneStage /><Toast /></>;
   if (S.stage === "play" && S.data && S.reveal) return <><RevealStage /><Toast /></>;
   return (

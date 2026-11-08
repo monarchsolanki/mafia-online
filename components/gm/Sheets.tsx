@@ -7,7 +7,10 @@ import { Cloud } from "@/lib/client/cloud";
 import * as act from "@/lib/client/actions";
 import { Icon } from "@/components/ui/Icon";
 import { RoleSheet, CustomRoleSheet } from "./Roles";
-import { OnlinePanel, ChatLog } from "./OnlinePanel";
+import { OnlinePanel, ChatLog, Qr } from "./OnlinePanel";
+import { setupLink, type SharedSetup } from "@/lib/client/share";
+import { groupStats } from "@/lib/client/stats";
+import { playedHistory } from "@/lib/client/history";
 import { fxChips } from "./Players";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -100,6 +103,7 @@ function PlayerSheet({ id }: { id: string }) {
         <button className="btn sm" onClick={() => act.openSheet("rename", { id: p.id })}><Icon name="edit" size="sm" />Rename</button>
         {r && s.phase !== "setup" && s.phase !== "ended" && <>
           <button className="btn sm" onClick={() => act.openSheet("setrole", { id: p.id })}><Icon name="swap" size="sm" />Change role</button>
+          <button className="btn sm" onClick={() => act.toggleDrunk(p.id)}><Icon name="bottle" size="sm" />{p.meta.drunk ? "Sober up" : "Make drunk"}</button>
           {p.alive ? <button className="btn sm danger" onClick={() => act.openSheet("kill", { id: p.id })}><Icon name="skull" size="sm" />Kill</button> : <button className="btn sm" onClick={() => act.revive(p.id)}><Icon name="ankh" size="sm" />Revive</button>}
         </>}
       </div>
@@ -272,6 +276,69 @@ function DeleteGame({ id, name }: { id: string; name: string }) {
   </>);
 }
 
+function GroupStatsSheet() {
+  const g = groupStats(playedHistory()); const pct = (a: number) => (g.games ? Math.round((a / g.games) * 100) : 0);
+  const best = (p: (typeof g.players)[number]) => { const e = Object.entries(p.byRole).filter(([, v]) => v.wins).sort((a, b) => b[1].wins - a[1].wins || b[1].games - a[1].games)[0]; return e ? `best as ${(E.getRole(A.s, e[0]) || { name: e[0] }).name} (${e[1].wins} of ${e[1].games})` : ""; };
+  return (<>
+    <Head title="Your group" icon="users" />
+    {!g.games ? <p className="muted">Finish a game and it shows up here: who wins, with which side, and how often.</p> : <>
+      <div className="stats">
+        <div className="stat"><b className="num">{g.games}</b><span>Games</span></div>
+        <div className="stat"><b className="num">{pct(g.factions.town)}%</b><span className="team town">Town won</span></div>
+        <div className="stat"><b className="num">{pct(g.factions.mafia)}%</b><span className="team mafia">Mafia won</span></div>
+        {(g.factions.neutral + g.factions.draw) > 0 && <div className="stat"><b className="num">{pct(g.factions.neutral + g.factions.draw)}%</b><span className="team neutral">Other</span></div>}
+      </div>
+      {g.highlights.length > 0 && <div className="stack" style={{ marginTop: 16, gap: 8 }}>{g.highlights.map((h, i) => <p key={i} className="note"><Icon name="star" size="sm" /><span>{h}</span></p>)}</div>}
+      <h3 className="label" style={{ marginTop: 20 }}>Players</h3>
+      <div className="list" style={{ marginTop: 4 }}>
+        {g.players.map(p => (
+          <div className="li" key={p.name} style={{ alignItems: "flex-start" }}>
+            <span className="grow"><b>{p.name}</b>
+              <span>{p.games} game{p.games === 1 ? "" : "s"} · {p.wins} win{p.wins === 1 ? "" : "s"} ({Math.round((p.wins / p.games) * 100)}%){best(p) ? " · " + best(p) : ""}</span>
+              {p.badges.length > 0 && <span className="row" style={{ gap: 6, marginTop: 6 }}>{p.badges.map(b => <span key={b.label} className="chip solid" title={b.why}>{b.label}</span>)}</span>}
+            </span>
+          </div>
+        ))}
+      </div>
+      {g.bySize.length > 0 && <>
+        <h3 className="label" style={{ marginTop: 20 }}>By table size</h3>
+        <div className="list" style={{ marginTop: 4 }}>{g.bySize.map(z => <div className="li" key={z.n} style={{ minHeight: 44 }}><span className="grow"><b>{z.n} players</b><span>Mafia won {z.mafia} · Town won {z.town} · of {z.games}</span></span></div>)}</div>
+        <p className="small muted" style={{ marginTop: 8 }}>When one side keeps winning at a size (4+ games), the Basic and “For you” suggestions move one seat between Mafia and Villager.</p>
+      </>}
+    </>}
+  </>);
+}
+function ShareSetup({ i }: { i: number }) {
+  const p = A.presets[i]; if (!p) return null;
+  const link = setupLink(p); const qrOk = link.length < 1800;
+  const copy = () => (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(() => toast("Link copied"), () => act.openSheet("copytext", { title: "Setup link", text: link }));
+  const share = () => { const n = navigator as Navigator & { share?: (d: ShareData) => Promise<void> }; if (n.share) n.share({ title: p.name, text: `Try this Mafia setup: ${p.name}`, url: link }).catch(() => {}); else copy(); };
+  return (<>
+    <Head title={`Share “${p.name}”`} icon="share" />
+    <p className="small muted">Another host scans the code or opens the link to save this setup. Only the role list travels — no players, no games.</p>
+    <div className="row nowrap" style={{ marginTop: 14, gap: 16, alignItems: "flex-start" }}>
+      {qrOk && <Qr text={link} />}
+      <div style={{ minWidth: 0 }}>
+        <p className="subtitle">{p.n} players</p>
+        <p className="small muted" style={{ marginTop: 4 }}>{E.poolList(p.pool).filter((id, k, a) => a.indexOf(id) === k).map(id => `${p.pool[id] > 1 ? p.pool[id] + "× " : ""}${(E.getRole(A.s, id) || { name: id }).name}`).join(", ")}</p>
+      </div>
+    </div>
+    <div className="row" style={{ marginTop: 16 }}><button className="btn primary" onClick={share}><Icon name="share" />Share link</button><button className="btn" onClick={copy}><Icon name="copy" size="sm" />Copy</button></div>
+  </>);
+}
+function ImportSetup({ sh }: { sh: SharedSetup }) {
+  const n = E.poolList(sh.pool).length; const name = (id: string) => { const c = (sh.custom || []).find(x => x.id === id); return c ? c.name : (E.getRole(A.s, id) || { name: id }).name; };
+  return (<>
+    <Head title="A setup was shared with you" icon="share" />
+    <p className="title">{sh.name}</p>
+    <p className="small muted" style={{ marginTop: 4 }}>{n} players · {Object.keys(sh.pool).map(id => `${sh.pool[id] > 1 ? sh.pool[id] + "× " : ""}${name(id)}`).join(", ")}</p>
+    {(sh.custom || []).length > 0 && <p className="small" style={{ marginTop: 8 }}>Includes {sh.custom!.length} custom role{sh.custom!.length === 1 ? "" : "s"}, added to your roles too.</p>}
+    <div className="row" style={{ marginTop: 16 }}>
+      <button className="btn primary" onClick={() => act.importSetup(sh, false)}><Icon name="save" size="sm" />Save to my setups</button>
+      {A.s.phase === "setup" && <button className="btn" onClick={() => act.importSetup(sh, true)}>Save and use it now</button>}
+    </div>
+  </>);
+}
 function CopyText({ title, text }: { title: string; text: string }) {
   return (<><Head title={title} /><p className="small muted">Saving files isn’t available here, so select this text and copy it.</p><textarea className="input" readOnly style={{ marginTop: 12, minHeight: 200, fontSize: 13 }} value={text} /></>);
 }
@@ -301,6 +368,9 @@ export function SheetHost() {
       case "import": return <Import />;
       case "copytext": return <CopyText title={sh.title} text={sh.text} />;
       case "diag": return <Diagnose d={sh.data} />;
+      case "share-setup": return <ShareSetup i={sh.i} />;
+      case "stats": return <GroupStatsSheet />;
+      case "import-setup": return <ImportSetup sh={sh.data} />;
       case "chatlog": return <><Head title="Faction chat" icon="mask" /><ChatLog /></>;
       case "signin": return <SignIn />;
       case "signup": return <SignUp />;

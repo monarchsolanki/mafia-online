@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import E from "@/lib/engine/engine";
 import { A, LS, plural } from "@/lib/client/store";
 import { Cloud } from "@/lib/client/cloud";
+import { playedHistory } from "@/lib/client/history";
 import * as act from "@/lib/client/actions";
 import { Icon } from "@/components/ui/Icon";
 
@@ -38,6 +39,7 @@ export function Home() {
   const s = A.s; const inProgress = s.phase !== "setup" || s.players.length > 0;
   const where = s.phase === "setup" ? "setup" : s.phase === "ended" ? "the results" : s.phase === "day" ? `Day ${s.day}` : s.phase === "dawn" ? `Dawn ${s.night}` : `Night ${s.night}`;
   const games = Cloud.games();
+  const played = playedHistory().filter(h => h.result).length;
   const cur = (s as { cloudId?: string }).cloudId;
   const saved = [A.presets.length && plural(A.presets.length, "setup"), A.groups.length && plural(A.groups.length, "group"), A.customLib.length && plural(A.customLib.length, "custom role")].filter(Boolean).join(" · ");
   return (
@@ -95,7 +97,10 @@ export function Home() {
           <button className="li" onClick={act.browseRoles} style={{ border: 0, background: "none", color: "inherit", textAlign: "left", width: "100%" }}>
             <Icon name="book" /><span className="grow"><b>Browse {E.allRoles(s).length} roles</b><span>Every role, its abilities and how it shows up under investigation</span></span><Icon name="chev" size="sm" />
           </button>
-          {saved && <div className="li"><Icon name="save" /><span className="grow"><b>Saved {Cloud.host ? "in your account" : "on this device"}</b><span>{saved}</span></span></div>}
+          {played > 0 && <button className="li" onClick={() => act.openSheet("stats")} style={{ border: 0, background: "none", color: "inherit", textAlign: "left", width: "100%" }}>
+            <Icon name="users" /><span className="grow"><b>Your group</b><span>{played} finished game{played === 1 ? "" : "s"} · win rates, records and badges</span></span><Icon name="chev" size="sm" />
+          </button>}
+                    {saved && <div className="li"><Icon name="save" /><span className="grow"><b>Saved {Cloud.host ? "in your account" : "on this device"}</b><span>{saved}</span></span></div>}
         </div>
       </section>
     </main>

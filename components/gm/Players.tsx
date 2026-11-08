@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/Icon";
 export function fxChips(p: Player): { t: string; tone?: "blood" | "solid" | "muted" }[] {
   const s = A.s; const c: { t: string; tone?: "blood" | "solid" | "muted" }[] = [];
   if (!p.alive) { const d = s.deaths.slice().reverse().find(x => x.id === p.id); c.push({ t: `Dead${d ? " · " + d.ph : ""}`, tone: "muted" }); }
+  if (p.meta.drunk) c.push({ t: "Drunk", tone: "muted" }); // the Game Master's screens only
   if (p.fx.revealed) c.push({ t: "Revealed" });
   if (p.fx.doused) c.push({ t: "Doused", tone: "blood" });
   if (p.fx.poison) c.push({ t: "Poisoned", tone: "blood" });

@@ -64,7 +64,8 @@ export interface Report {
 export interface Action { key: string; actor: string; ab: string; targets: string[]; opts: Record<string, any>; at?: number }
 export interface WinCheck { status: "ongoing" | "over" | "showdown"; faction?: string; reason?: string; winners?: { id: string; why: string }[]; pending?: string[] }
 export interface Pending { id: string; type: "hunter" | "haunt"; actor: string; choices?: string[] }
-export interface DayState { nominees: string[]; votes: Record<string, string>; open: boolean; round: number; done: boolean; result: any; startedAt: number }
+export interface DayState { nominees: string[]; votes: Record<string, string>; open: boolean; round: number; done: boolean; result: any; startedAt: number;
+  reveal?: { key: string; round: number; ballots: { from: string; to: string; w?: number }[]; outcome: string }; lastWords?: { target: string; endsAt: number; total: number } }
 
 export interface Game {
   v: 1;
@@ -93,7 +94,7 @@ export interface Game {
   lastWin?: WinCheck | null;
   result: { faction: string; factionName: string; reason: string; winners: { id: string; why: string }[] } | null;
   executions: number;
-  initialRoles: { id: string; roleId: string; team: Team; target?: string | null; fake?: string | null }[];
+  initialRoles: { id: string; roleId: string; team: Team; target?: string | null; fake?: string | null; drunk?: boolean }[];
   nightUi?: { night: number; visited: Record<string, string>; phone?: Record<string, { by: string; pass?: boolean; ab?: string; targets?: string[]; waiting?: boolean }> };
   lastAnnounce?: { n: number; format: string; custom?: string };
 }
@@ -106,11 +107,12 @@ export interface NightStep {
 }
 
 export interface PlayerCard {
-  name: string; color: string; roleName: string; icon: string; team: Team; teamName: string; short: string; desc: string; winText: string;
+  name: string; color: string; roleId?: string; roleName: string; icon: string; team: Team; teamName: string; short: string; desc: string; winText: string;
   abilities: string[]; teammates: { name: string; role: string; alive: boolean }[]; target: string | null; lover: string | null;
 }
 
-export interface PlayedGame { id?: string; at?: number; n?: number; roles: Record<string, number>; liked?: number; saved?: boolean }
+export interface PlayedGame { id?: string; at?: number; n?: number; roles: Record<string, number>; liked?: number; saved?: boolean; result?: { faction: string; players?: [string, string, number, number][] } }
+export interface GameStory { headline: string; reason: string; faction: string; winners: string[]; players: number; nights: number; chapters: { label: string; lines: string[] }[]; highlights: string[] }
 export interface Twist { add: string; remove: string; addName: string; removeName: string; short: string; why: string; balance: { score: number; label: string; fair: boolean } }
 
 declare const Engine: {
@@ -138,6 +140,12 @@ declare const Engine: {
   clueRoles(s: Game, shownId: string, key: string, hide?: string | null): { id: string; name: string }[];
   clueShown(s: Game, p: Player, ctx: { disguised: Set<string>; framed: Set<string> }, key: string): { id: string; hide: string | null };
   evilRole(r: Role): boolean;
+  story(s: Game): GameStory | null;
+  seatList(pool: Record<string, number>): string[];
+  drunkCards(pool: Record<string, number>): number;
+  setDrunk(s: Game, pid: string, on: boolean): Game;
+  drunkCandidates(s: Game): Player[];
+  drunkFails(s: Game, pid: string, night?: number): boolean;
   basicPool(n: number, s?: Game | null): Record<string, number>;
   suggestTwists(s: Game | null, pool: Record<string, number>, history: PlayedGame[], n: number): Twist[];
   newGame(): Game;
@@ -149,7 +157,8 @@ declare const Engine: {
   assignRoles(s: Game): void;
   finalizeAssignment(s: Game): void;
   balanceOf(s: Game | null, pool: Record<string, number>): { score: number; label: string; counts: { town: number; mafia: number; neutral: number }; n: number; fair: boolean };
-  recommend(n: number, style?: string, seed?: number, s?: Game | null, history?: PlayedGame[] | null): { pool: Record<string, number>; balance: any; seats: any; note?: string };
+  recommend(n: number, style?: string, seed?: number, s?: Game | null, history?: PlayedGame[] | null): { pool: Record<string, number>; balance: any; seats: any; note?: string; tuned?: string };
+  groupTune(s: Game | null, pool: Record<string, number>, n: number, history: PlayedGame[]): { pool: Record<string, number>; note: string };
   forYou(s: Game | null, n: number, history: PlayedGame[], seed?: number): { pool: Record<string, number>; balance: any; liked: string[]; fresh: string | null; note: string };
   tasteOf(history: PlayedGame[]): { taste: Record<string, number>; likedGames: number; rated: number; games: number; saved: number };
   seats(n: number, style: string): { mafia: number; neutral: number; killers: number; town: number };

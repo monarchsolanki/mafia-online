@@ -1,7 +1,7 @@
 "use client";
 // Everything the Game Master can do. Each function is the old app's handler, unchanged in behaviour.
 import E from "@/lib/engine/engine";
-import { recordPlayed, playedHistory, rateGame } from "./history";
+import { recordPlayed, playedHistory, rateGame, recordResult } from "./history";
 import type { Game, NightStep } from "@/lib/engine/engine";
 import { A, taste, emit, cmd, save, savePrefs, saveLibrary, setupMut, toast, confirmSheet, top0, resetUi, lastHist, effN, autoPool, roleCount, afterPlayersChange, plural, P, type View } from "./store";
 import { Sound } from "./sound";
@@ -103,6 +103,24 @@ export function loadPreset(i: number) {
   setupMut(s => { s.setup.pool = E.clone(p.pool); s.setup.poolTouched = true; s.setup.dealt = false; });
   toast(`Loaded ${p.name}`);
 }
+/** A setup shared by another host: save it, and optionally use it right away. Custom roles come along. */
+export function importSetup(sh: { name: string; pool: Record<string, number>; custom?: Record<string, any>[] }, useNow: boolean) {
+  const map: Record<string, string> = {};
+  for (const d of sh.custom || []) {
+    const existing = Object.values(A.s.customRoles).find(r => r.name === d.name) || A.customLib.find(r => r.name === d.name);
+    if (existing) { map[d.id] = existing.id; continue; }
+    let r = E.makeCustomRole(d); let k = 2;
+    while (E.LIBMAP[r.id] || A.s.customRoles[r.id]) { r = E.makeCustomRole(Object.assign({}, d, { idSuffix: String(k++) })); }
+    Cloud.saveRole(r); map[d.id] = r.id;
+  }
+  const pool: Record<string, number> = {};
+  for (const [id, n] of Object.entries(sh.pool)) pool[map[id] || id] = (pool[map[id] || id] || 0) + n;
+  Cloud.saveSetup({ name: sh.name, n: E.poolList(pool).length, pool, style: "custom" });
+  if (useNow && A.s.phase === "setup") {
+    setupMut(s => { s.setup.pool = E.clone(pool); s.setup.poolTouched = true; s.setup.dealt = false; });
+    Object.assign(A.ui, { view: "command", setupStep: 1, sheet: null }); top0(); emit();
+  } else { A.ui.sheet = null; emit(); }
+}
 export function deletePreset(i: number) {
   const p = A.presets[i]; if (!p) return;
   confirmSheet({ title: `Delete “${p.name}”?`, body: Cloud.host ? "This removes the setup from your account." : "This removes the setup from this device.", ok: "Delete", danger: true, onOk: () => Cloud.deleteSetup(i) });
@@ -136,7 +154,7 @@ export function poolTrim() {
   if (v < d) toast(`Remove ${d - v} more role${d - v === 1 ? "" : "s"} by hand — not enough Villagers to trim.`);
   setupMut(s => { const cut = Math.min(d, v); if (cut > 0) { s.setup.pool.villager -= cut; if (!s.setup.pool.villager) delete s.setup.pool.villager; s.setup.poolTouched = true; s.setup.dealt = false; } });
 }
-const NUM_CFG = ["convertCap", "guessShots", "dayTimer", "stalemateCycles"];
+const NUM_CFG = ["convertCap", "guessShots", "dayTimer", "stalemateCycles", "lastWords"];
 export function cfgToggle(k: string) { const s = A.s; s.config[k] = !s.config[k]; if (s.phase !== "setup") E.log(s, "override", `Rule changed: ${k} → ${s.config[k] ? "on" : "off"}.`); save(); emit(); }
 export function cfgSet(k: string, v: string) { const s = A.s; s.config[k] = NUM_CFG.includes(k) ? +v : v; if (k === "dayTimer") A.ui.timer = null; if (s.phase !== "setup") E.log(s, "override", `Rule changed: ${k} → ${v}.`); save(); emit(); }
 export function cfgReset() { confirmSheet({ title: "Restore default rules?", body: "Every house rule goes back to its default. Your PIN is kept.", ok: "Restore defaults", onOk: () => { const pin = A.s.config.godPin; A.s.config = E.clone(E.DEFAULT_CONFIG); A.s.config.godPin = pin; save(); toast("Defaults restored"); } }); }
@@ -170,6 +188,17 @@ export function manualRole(pid: string, v: string) {
   });
 }
 export function deal() { cmd("Deal roles", s => { E.assignRoles(s); s.setup.dealt = true; s.setup.revealed = false; }); A.ui.showAssign = false; A.ui.peek = {}; Sound.confirm(); emit(); }
+/** Move a Drunk card from one player to another (or put it on someone). */
+export function moveDrunk(from: string | null, to: string) {
+  if (!to || from === to) return;
+  cmd(`Drunk: ${E.pname(A.s, to)}`, s => { if (from) E.setDrunk(s, from, false); E.setDrunk(s, to, true); });
+  toast(`${E.pname(A.s, to)} is now the drunk one`);
+}
+export function toggleDrunk(pid: string) {
+  const on = !E.getP(A.s, pid)!.meta.drunk;
+  cmd(`${E.pname(A.s, pid)}: ${on ? "drunk" : "sober"}`, s => E.setDrunk(s, pid, on));
+  toast(on ? `${E.pname(A.s, pid)} is drunk from now on` : `${E.pname(A.s, pid)} is sober from now on`);
+}
 export function openReveal(ids: string[], after?: () => void) { A.ui.overlay = { type: "reveal", queue: ids, i: 0, stage: "pass", after }; A.ui.sheet = null; emit(); }
 export function revealAll() { if (!A.s.setup.dealt) { toast("Deal the roles first."); return; } openReveal(A.s.players.map(p => p.id), () => { A.s.setup.revealed = true; save(); emit(); }); }
 function nightFalls() { Sound.night(); A.ui.overlay = { type: "cine", kind: "night", n: A.s.night }; }
@@ -311,10 +340,36 @@ function executionScene(targetId: string) {
   const d = s.deaths.slice().reverse().find(x => x.id === targetId && x.execution);
   A.ui.overlay = { type: "execution", name: E.pname(s, targetId), spared: !!(r && r.spared), role: d ? d.publicRole : null, hidden: !!(d && s.config.revealOnDeath && d.cleaned), cause: r && r.spared ? null : "executed by the town" };
 }
+/* ---------- vote drama: the ballots one by one, then the accused's last words ---------- */
+/** Before an execution: a countdown for the accused to speak, on this phone and every player's phone. */
+function lastWordsThen(target: string, then: () => void) {
+  const secs = Number(A.s.config.lastWords) || 0; const ds = A.s.dayState;
+  if (!secs || !ds) { then(); return; }
+  const endsAt = Date.now() + secs * 1000;
+  ds.lastWords = { target, endsAt, total: secs }; save();
+  A.ui.overlay = { type: "lastwords", target, endsAt, total: secs, then }; emit();
+}
+export function finishLastWords() {
+  const ov = A.ui.overlay; if (A.s.dayState) delete A.s.dayState.lastWords; save();
+  A.ui.overlay = null; emit(); if (ov && ov.then) ov.then();
+}
+export function cancelLastWords() { if (A.s.dayState) delete A.s.dayState.lastWords; save(); A.ui.overlay = null; toast("Execution cancelled"); emit(); }
+/** Shows the locked ballots one by one (and sends them to the phones), then carries on. */
+function revealVotes(then: () => void) {
+  const s = A.s; const ds = s.dayState; if (!ds) { then(); return; }
+  const t = E.tally(s); const r = t.result; const nm = (id: string) => (id === "skip" ? "No execution" : E.pname(s, id));
+  const ballots = s.players.filter(p => ds.votes[p.id] !== undefined).map(p => ({ from: p.name, to: nm(ds.votes[p.id]), w: E.voteWeight(s, p) }));
+  const outcome = r.type === "execute" ? `${nm(r.target)} is to be executed.` : r.type === "revote" ? `A tie between ${r.tied.map(nm).join(" and ")} — they face a revote.` : r.type === "random" ? `A tie between ${r.tied.map(nm).join(" and ")} — one is picked at random.` : r.reason || "Nobody is executed.";
+  if (!ballots.length) { then(); return; }
+  ds.reveal = { key: `D${s.day}R${ds.round}`, round: ds.round, ballots, outcome }; save();
+  A.ui.overlay = { type: "votes", ballots, outcome, round: ds.round, then }; emit();
+}
+export function finishVotes() { const ov = A.ui.overlay; A.ui.overlay = null; emit(); if (ov && ov.then) ov.then(); }
 export function execPick(id: string) {
   const name = E.pname(A.s, id);
+  const go = () => { if (cmd(`Day ${A.s.day}: execute ${name}`, s => E.quickExecute(s, id))) { executionScene(id); emit(); } };
   confirmSheet({ title: `Execute ${name}?`, body: "Death abilities trigger immediately. You can undo this.", ok: `Execute ${name}`, danger: true,
-    onOk: () => { if (cmd(`Day ${A.s.day}: execute ${name}`, s => E.quickExecute(s, id))) { executionScene(id); emit(); } } });
+    onOk: () => lastWordsThen(id, go) });
 }
 export function voteSkip() { confirmSheet({ title: "Skip execution?", body: "Nobody is executed today.", ok: "Skip", onOk: () => cmd(`Day ${A.s.day}: no vote`, s => E.skipVote(s)) }); }
 export function voteOpen() { const ids = A.s.players.filter(p => p.alive).map(p => p.id); cmd(`Day ${A.s.day}: let phones vote`, s => E.openVote(s, ids)); }
@@ -322,7 +377,8 @@ export function voteClose() { cmd(`Day ${A.s.day}: close phone voting`, s => E.c
 export function voteManual(pid: string, v: string) { const s = A.s; const ds = s.dayState; const p = E.getP(s, pid); if (!ds || !ds.open || !p || !E.canVote(s, p)) return; if (v) ds.votes[p.id] = v; else delete ds.votes[p.id]; save(); Sound.tick(); emit(); }
 export function voteConfirm() {
   const s = A.s; const t = E.tally(s); const r = t.result; const nm = (id: string) => id === "skip" ? "no execution" : E.pname(s, id);
-  const go = () => { if (cmd(`Day ${A.s.day} vote`, s2 => E.confirmVote(s2))) { const res = A.s.dayState && A.s.dayState.result; if (res && res.type === "execute") executionScene(res.target); emit(); } };
+  const exec = () => { if (cmd(`Day ${A.s.day} vote`, s2 => E.confirmVote(s2))) { const res = A.s.dayState && A.s.dayState.result; if (res && res.type === "execute") executionScene(res.target); emit(); } };
+  const go = () => revealVotes(() => (r.type === "execute" ? lastWordsThen(r.target, exec) : exec()));
   if (r.type === "execute") confirmSheet({ title: `Execute ${nm(r.target)}?`, body: `${nm(r.target)} received ${t.totals[r.target]} vote${t.totals[r.target] === 1 ? "" : "s"}. Death abilities trigger immediately. You can undo this.`, ok: `Execute ${nm(r.target)}`, danger: true, onOk: go });
   else if (r.type === "revote") confirmSheet({ title: "Tie — hold a revote?", body: `${r.tied.map(nm).join(" and ")} are tied. Votes are cleared and only they stay on trial.`, ok: "Start the revote", onOk: go });
   else if (r.type === "random") confirmSheet({ title: "Tie — pick at random?", body: `${r.tied.map(nm).join(" and ")} are tied. One outcome is chosen at random.`, ok: "Pick at random", danger: true, onOk: go });
@@ -343,7 +399,7 @@ export function restartDay() {
 }
 
 /* ---------- winning, ending and restarting ---------- */
-function winScene() { Sound.end(); A.ui.overlay = { type: "win" }; top0(); }
+function winScene() { Sound.end(); recordResult(A.s); A.ui.overlay = { type: "win" }; top0(); }
 export function endGameWin() { confirmSheet({ title: "End the game and reveal every role?", body: "The results screen shows all roles to everyone.", ok: "End the game", onOk: () => { if (cmd("End the game", s => E.endGame(s, s.winPrompt))) { winScene(); emit(); } } }); }
 export function dismissWin() { cmd("Keep playing", s => E.dismissWin(s)); }
 export function stalemateDraw() { confirmSheet({ title: "End the game as a draw?", body: "No faction wins. Survivors, Jesters and other independents are still judged on their own goals.", ok: "End as a draw", onOk: () => { if (cmd("End as a draw", s => E.endGame(s, { status: "over", faction: "draw", reason: "Stalemate — nobody could be eliminated.", winners: E.computeWinners(s, "draw") }))) { winScene(); emit(); } } }); }

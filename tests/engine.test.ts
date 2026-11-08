@@ -215,6 +215,76 @@ const invCheck = (s, inv, target) => { const act = { key: inv.id, actor: inv.id,
   ok(JSON.stringify(E.suggestTwists(null, base, saved, 10)) === JSON.stringify(E.suggestTwists(null, base, [], 10)), 'twist: a saved setup does not count as played');
 }
 
+/* ---------- The Drunk: an extra card on top of a Town power role ---------- */
+{
+  const dealt = () => {
+    const s = E.newGame(); ['Aman', 'Riya', 'Kabir', 'Dev', 'Isha', 'Neha', 'Arjun', 'Rahul'].forEach(n => E.addPlayer(s, n));
+    s.setup.pool = { mafia: 2, doctor: 1, police: 1, villager: 4, drunk: 1 }; E.assignRoles(s); s.setup.dealt = true; return s;
+  };
+  ok(E.seatList({ mafia: 2, doctor: 1, police: 1, villager: 4, drunk: 1 }).length === 8, 'drunk: 8 players use 9 roles when one is the Drunk');
+  for (let k = 0; k < 20; k++) {
+    const s = dealt(); const drunk = s.players.filter(p => p.meta.drunk);
+    ok(drunk.length === 1 && ['doctor', 'police'].includes(drunk[0].roleId) && drunk[0].team === 'town', `drunk: lands on exactly one Town power role (deal ${k + 1})`);
+    ok(!s.players.some(p => p.roleId === 'drunk'), 'drunk: is never dealt as a seat');
+    ok(s.initialRoles.some(r => r.drunk), 'drunk: remembered in the dealt roles');
+    ok(E.playerCard(s, drunk[0].id).roleName === E.getRole(s, drunk[0].roleId).name, 'drunk: their card shows only their real role');
+  }
+  // the 80% failure rate, over many nights
+  const s = dealt(); E.startGame(s);
+  const doc = s.players.find(p => p.roleId === 'doctor'), cop = s.players.find(p => p.roleId === 'police'), maf = s.players.find(p => p.roleId === 'mafia');
+  const vic = s.players.find(p => p.roleId === 'villager');
+  for (const p of s.players) E.setDrunk(s, p.id, false);
+  E.setDrunk(s, doc.id, true); E.setDrunk(s, cop.id, true);
+  let fails = 0, wrongWhenFailing = true, rightWhenLucky = true, savedOnlyWhenLucky = true;
+  for (let n = 1; n <= 200; n++) {
+    s.night = n; s.actions = [];
+    const f = E.drunkFails(s, doc.id, n); if (f) fails++;
+    E.setAction(s, { key: doc.id, actor: doc.id, ab: E.nightAbilities(s, doc)[0].id, targets: [vic.id], opts: {} });
+    E.setAction(s, { key: cop.id, actor: cop.id, ab: E.nightAbilities(s, cop)[0].id, targets: [maf.id], opts: {} });
+    E.setAction(s, { key: 'mafia', actor: maf.id, ab: 'factionKill', targets: [vic.id], opts: {} });
+    const r = E.resolveNight(s).reports[n];
+    const died = r.deaths.some(d => d.id === vic.id);
+    if (died !== f) savedOnlyWhenLucky = false; // a failed heal lets the victim die; a lucky one saves them
+    const answer = (r.messages.find(m => m.to === cop.id && m.tag === 'result') || {}).text || '';
+    if (E.drunkFails(s, cop.id, n)) wrongWhenFailing = wrongWhenFailing && /Thumbs down/.test(answer); else rightWhenLucky = rightWhenLucky && /Thumbs up/.test(answer);
+  }
+  ok(fails >= 140 && fails <= 180, `drunk: fails about 80% of nights (${fails} of 200)`);
+  ok(wrongWhenFailing, 'drunk: a drunk Police gets the wrong answer on a bad night');
+  ok(rightWhenLucky, 'drunk: a drunk Police gets the right answer on a lucky night');
+  ok(savedOnlyWhenLucky, 'drunk: a drunk Doctor saves only on lucky nights');
+  // the Game Master's preview matches the real result
+  s.night = 3; s.actions = [];
+  const pact = { key: cop.id, actor: cop.id, ab: E.nightAbilities(s, cop)[0].id, targets: [maf.id], opts: {} };
+  const pv = E.previewResult(s, pact); E.setAction(s, pact);
+  ok(pv.messages[0] === E.resolveNight(s).reports[3].messages.find(m => m.to === cop.id && m.tag === 'result').text, 'drunk: the preview shows the same answer the player gets');
+  // a restart with the same roles keeps the Drunk where it was
+  const same = E.restartGame(s, 'same');
+  ok(same.players.find(p => p.id === doc.id).meta.drunk && same.players.find(p => p.id === cop.id).meta.drunk, 'drunk: a same-roles restart keeps it');
+  // older games with a Drunk dealt as a seat still work
+  ok(E.seatList({ villager: 3 }).length === 3, 'drunk: pools without a Drunk are unchanged');
+}
+
+/* ---------- The story of the game ---------- */
+{
+  let s = E.newGame();
+  ['Asha', 'Bilal', 'Chen', 'Dina', 'Eli'].forEach(n => E.addPlayer(s, n));
+  const roles = ['mafia', 'doctor', 'police', 'villager', 'villager'];
+  s.players.forEach((p, i) => E.setRole(s, p, roles[i]));
+  E.startGame(s);
+  const [maf, doc, , vic] = s.players;
+  ok(E.story(s) === null, 'story: none before the game ends');
+  E.setAction(s, { key: doc.id, actor: doc.id, ab: E.nightAbilities(s, doc)[0].id, targets: [vic.id], opts: {} });
+  E.setAction(s, { key: 'mafia', actor: maf.id, ab: 'factionKill', targets: [vic.id], opts: {} });
+  s = E.resolveNight(s); E.startDay(s);
+  E.quickExecute(s, s.players[0].id); E.endGame(s, s.winPrompt);
+  const st = E.story(s);
+  ok(st && st.faction === 'town' && /Town/.test(st.headline), 'story: headline names the winners');
+  ok(st && st.chapters[0].label === 'Night 1' && st.chapters[0].lines.some(l => /Bilal \(Doctor\) healed Dina, who survived an attack/.test(l)), 'story: the save is told');
+  ok(st && st.chapters.some(c => c.label === 'Day 1' && c.lines.some(l => /executed Asha \(Mafia\)/.test(l))), 'story: the execution is told');
+  ok(st && st.highlights.some(h => /Bilal the Doctor saved 1 life/.test(h)), 'story: the healer is a highlight');
+  ok(st && st.players === 5 && st.nights === 1, 'story: table size and nights');
+}
+
 test("every engine rule check passes", () => {
   expect(fails).toEqual([]);
   expect(pass).toBeGreaterThan(50);

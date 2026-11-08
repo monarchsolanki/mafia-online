@@ -3,6 +3,7 @@
 // Signed out, everything works as before on this device. Signed in, the account is the source of truth and the
 // device keeps a copy, so a closed browser or a different phone loses nothing.
 import E from "@/lib/engine/engine";
+import { resultOf } from "./results";
 import type { Game, Role } from "@/lib/engine/engine";
 import { A, LS, emit, save, saveLibrary, toast, onSave, migrate, resetUi, top0, type Preset, type Group } from "./store";
 
@@ -167,7 +168,7 @@ export const Cloud = {
     const names = s.players.map(p => p.name);
     const roles: Record<string, number> = {}; for (const r of (s.initialRoles || [])) if (r.roleId) roles[r.roleId] = (roles[r.roleId] || 0) + 1;
     const meta = { phase: s.phase, night: s.night, day: s.day, players: s.players.length, alive: s.players.filter(p => p.alive).length, names: names.slice(0, 5), line: phaseLine(s), faction: s.result ? s.result.faction : null,
-      gid: s.id, startedAt: s.startedAt, roles, liked: (s as Game & { rating?: number }).rating }; // feeds "For you" and the twist on other devices
+      gid: s.id, startedAt: s.startedAt, roles, liked: (s as Game & { rating?: number }).rating, result: resultOf(s) }; // feeds "For you", the twist and group stats on other devices
     try {
       const it = await this.put("game", s.cloudId, `${s.players.length} players · ${phaseLine(s)}`, meta, s);
       this.lastGameSig = sig; this.upsertItem(it);

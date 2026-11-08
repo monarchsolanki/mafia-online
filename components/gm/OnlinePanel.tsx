@@ -6,7 +6,7 @@ import { Online, phoneMode, chatMode } from "@/lib/client/online";
 import * as act from "@/lib/client/actions";
 import { Icon } from "@/components/ui/Icon";
 
-function Qr({ text }: { text: string }) {
+export function Qr({ text }: { text: string }) {
   const [svg, setSvg] = useState("");
   useEffect(() => { let live = true; QRCode.toString(text, { type: "svg", margin: 1, errorCorrectionLevel: "M", color: { dark: "#111111", light: "#ffffff" } }).then(s => { if (live) setSvg(s); }).catch(() => {}); return () => { live = false; }; }, [text]);
   return <div role="img" aria-label="QR code to join this room" style={{ width: 132, height: 132, borderRadius: 16, overflow: "hidden", background: "#fff", flex: "none", padding: 6 }} dangerouslySetInnerHTML={{ __html: svg }} />;

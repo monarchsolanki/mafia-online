@@ -5,6 +5,7 @@ import { A, useStore, boot, onSave, undo, toast, actOf, emit, top0, type View } 
 import { Sound, soundSetup } from "@/lib/client/sound";
 import { Online } from "@/lib/client/online";
 import { Cloud } from "@/lib/client/cloud";
+import { decodeSetup } from "@/lib/client/share";
 import * as act from "@/lib/client/actions";
 import { Icon } from "@/components/ui/Icon";
 import { Home } from "./Home";
@@ -96,6 +97,10 @@ export default function GameMaster() {
     (window as unknown as { __omerta: unknown }).__omerta = { A, E, emit, act, Cloud, Online }; // for tests and debugging on the device
     soundSetup(() => !!A.prefs.sound);
     onSave(() => { if (Online.room) Online.schedule(); });
+    try { // a setup shared by another host: /?setup=...
+      const q = new URL(location.href).searchParams.get("setup");
+      if (q) { const sh = decodeSetup(q); history.replaceState(null, "", location.pathname); if (sh) { A.ui.sheet = { type: "import-setup", data: sh }; emit(); } else toast("That setup link is broken or incomplete."); }
+    } catch { /* not a setup link */ }
     Online.init(); Cloud.init();
     try { history.replaceState({ omerta: "root" }, ""); history.pushState({ omerta: "app" }, ""); } catch { /* history blocked */ }
     const onPop = () => { if (goBack() === "exit") { try { history.back(); } catch { /* gone */ } return; } try { history.pushState({ omerta: "app" }, ""); } catch { /* blocked */ } };
@@ -109,7 +114,7 @@ export default function GameMaster() {
   }, []);
 
   const ov = ready ? A.ui.overlay : null;
-  const theAct = !ready ? "dusk" : ov && ov.act ? ov.act : ov && ov.type === "announce" ? "dawn" : ov && ov.type === "execution" ? "vote" : ov && ov.type === "cine" ? "night" : actOf(A.s, A.ui.view);
+  const theAct = !ready ? "dusk" : ov && ov.act ? ov.act : ov && ov.type === "announce" ? "dawn" : ov && ["execution", "votes", "lastwords"].includes(ov.type) ? "vote" : ov && ov.type === "cine" ? "night" : actOf(A.s, A.ui.view);
   useEffect(() => {
     document.documentElement.dataset.act = theAct;
     const m = META_THEME(); if (m) m.setAttribute("content", getComputedStyle(document.documentElement).getPropertyValue("--ground").trim() || "#2b1e40");
