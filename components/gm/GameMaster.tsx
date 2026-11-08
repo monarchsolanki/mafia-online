@@ -114,7 +114,7 @@ export default function GameMaster() {
   }, []);
 
   const ov = ready ? A.ui.overlay : null;
-  const theAct = !ready ? "dusk" : ov && ov.act ? ov.act : ov && ov.type === "announce" ? "dawn" : ov && ov.type === "execution" ? "vote" : ov && ov.type === "cine" ? "night" : actOf(A.s, A.ui.view);
+  const theAct = !ready ? "dusk" : ov && ov.act ? ov.act : ov && ov.type === "announce" ? "dawn" : ov && ["execution", "votes", "lastwords"].includes(ov.type) ? "vote" : ov && ov.type === "cine" ? "night" : actOf(A.s, A.ui.view);
   useEffect(() => {
     document.documentElement.dataset.act = theAct;
     const m = META_THEME(); if (m) m.setAttribute("content", getComputedStyle(document.documentElement).getPropertyValue("--ground").trim() || "#2b1e40");

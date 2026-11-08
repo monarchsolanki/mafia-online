@@ -44,6 +44,7 @@ const CFG: [string, Cfg[]][] = [
     ["voteThreshold", "sel", "An execution needs", "", [["plurality", "The most votes"], ["majority", "A majority of voters"]]],
     ["voteTie", "sel", "On a tie", "", [["none", "Nobody is executed"], ["random", "Pick one at random"], ["revote", "Revote among the tied"]]],
     ["allowSkip", "bool", "Allow a vote for no execution"],
+    ["lastWords", "sel", "Last words before an execution", "A countdown on every phone while the accused speaks.", [[0, "Off"], [15, "15 seconds"], [30, "30 seconds"], [45, "45 seconds"], [60, "1 minute"]]],
     ["mayorWeight", "sel", "A revealed Mayor's vote counts", "Scaled: 3 votes while more than 7 players are alive, then 2.", [["auto", "Scaled (3, then 2)"], ...rng(1, 5, x => "Always " + x)], hasMayor],
     ["mayorOnce", "bool", "The Mayor's bonus vote works only once", "Only the first vote after the Mayor reveals counts extra. After that the Mayor votes as one.", null, hasMayor],
   ]],

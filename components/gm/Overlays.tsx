@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Hold } from "@/components/ui/Hold";
 import { RoleCard } from "@/components/fx/RoleCard";
 import { DeathScene } from "@/components/fx/DeathScene";
+import { VoteReveal, LastWords } from "@/components/fx/VoteDrama";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function AutoHide({ onHide }: { onHide: () => void }) {
@@ -141,6 +142,8 @@ export function OverlayHost() {
   if (ov.type === "reveal" || ov.type === "private") return <PrivateFlow ov={ov} />;
   if (ov.type === "result") return <ResultScreen ov={ov} />;
   if (ov.type === "cine") return <NightFalls n={ov.n} />;
+  if (ov.type === "votes") return <VoteReveal ballots={ov.ballots} outcome={ov.outcome} round={ov.round} onDone={act.finishVotes} />;
+  if (ov.type === "lastwords") return <LastWords name={E.pname(A.s, ov.target)} endsAt={ov.endsAt} total={ov.total} onDone={act.finishLastWords} doneLabel="Carry out the execution" onCancel={act.cancelLastWords} />;
   if (ov.type === "win") return <WinScene />;
   if (ov.type === "announce") {
     const ann = E.dawnAnnouncement(A.s, ov.n); const f = ov.format;

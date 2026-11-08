@@ -95,6 +95,7 @@ function Recommend() {
       <RoleChips pool={rec.pool} />
       <Balance pool={rec.pool} />
       <p className={st === "foryou" ? "small" : "tiny muted"} style={{ marginTop: 12 }}>{st === "foryou" ? rec.note : STYLE_HINT[st]}</p>
+      {st === "basic" && rec.tuned && <p className="note" style={{ marginTop: 10 }}><Icon name="spiral" size="sm" /><span>{rec.tuned}</span></p>}
       <div className="row" style={{ marginTop: 14 }}>
         {!inUse && <button className="btn sm primary" onClick={act.recUse}><Icon name="check" size="sm" />Use this</button>}
         {st !== "basic" && <button className="btn sm" onClick={act.recReroll}><Icon name="dice" size="sm" />Shuffle</button>}

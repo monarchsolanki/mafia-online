@@ -154,7 +154,7 @@ export function poolTrim() {
   if (v < d) toast(`Remove ${d - v} more role${d - v === 1 ? "" : "s"} by hand — not enough Villagers to trim.`);
   setupMut(s => { const cut = Math.min(d, v); if (cut > 0) { s.setup.pool.villager -= cut; if (!s.setup.pool.villager) delete s.setup.pool.villager; s.setup.poolTouched = true; s.setup.dealt = false; } });
 }
-const NUM_CFG = ["convertCap", "guessShots", "dayTimer", "stalemateCycles"];
+const NUM_CFG = ["convertCap", "guessShots", "dayTimer", "stalemateCycles", "lastWords"];
 export function cfgToggle(k: string) { const s = A.s; s.config[k] = !s.config[k]; if (s.phase !== "setup") E.log(s, "override", `Rule changed: ${k} → ${s.config[k] ? "on" : "off"}.`); save(); emit(); }
 export function cfgSet(k: string, v: string) { const s = A.s; s.config[k] = NUM_CFG.includes(k) ? +v : v; if (k === "dayTimer") A.ui.timer = null; if (s.phase !== "setup") E.log(s, "override", `Rule changed: ${k} → ${v}.`); save(); emit(); }
 export function cfgReset() { confirmSheet({ title: "Restore default rules?", body: "Every house rule goes back to its default. Your PIN is kept.", ok: "Restore defaults", onOk: () => { const pin = A.s.config.godPin; A.s.config = E.clone(E.DEFAULT_CONFIG); A.s.config.godPin = pin; save(); toast("Defaults restored"); } }); }
@@ -340,10 +340,36 @@ function executionScene(targetId: string) {
   const d = s.deaths.slice().reverse().find(x => x.id === targetId && x.execution);
   A.ui.overlay = { type: "execution", name: E.pname(s, targetId), spared: !!(r && r.spared), role: d ? d.publicRole : null, hidden: !!(d && s.config.revealOnDeath && d.cleaned), cause: r && r.spared ? null : "executed by the town" };
 }
+/* ---------- vote drama: the ballots one by one, then the accused's last words ---------- */
+/** Before an execution: a countdown for the accused to speak, on this phone and every player's phone. */
+function lastWordsThen(target: string, then: () => void) {
+  const secs = Number(A.s.config.lastWords) || 0; const ds = A.s.dayState;
+  if (!secs || !ds) { then(); return; }
+  const endsAt = Date.now() + secs * 1000;
+  ds.lastWords = { target, endsAt, total: secs }; save();
+  A.ui.overlay = { type: "lastwords", target, endsAt, total: secs, then }; emit();
+}
+export function finishLastWords() {
+  const ov = A.ui.overlay; if (A.s.dayState) delete A.s.dayState.lastWords; save();
+  A.ui.overlay = null; emit(); if (ov && ov.then) ov.then();
+}
+export function cancelLastWords() { if (A.s.dayState) delete A.s.dayState.lastWords; save(); A.ui.overlay = null; toast("Execution cancelled"); emit(); }
+/** Shows the locked ballots one by one (and sends them to the phones), then carries on. */
+function revealVotes(then: () => void) {
+  const s = A.s; const ds = s.dayState; if (!ds) { then(); return; }
+  const t = E.tally(s); const r = t.result; const nm = (id: string) => (id === "skip" ? "No execution" : E.pname(s, id));
+  const ballots = s.players.filter(p => ds.votes[p.id] !== undefined).map(p => ({ from: p.name, to: nm(ds.votes[p.id]), w: E.voteWeight(s, p) }));
+  const outcome = r.type === "execute" ? `${nm(r.target)} is to be executed.` : r.type === "revote" ? `A tie between ${r.tied.map(nm).join(" and ")} — they face a revote.` : r.type === "random" ? `A tie between ${r.tied.map(nm).join(" and ")} — one is picked at random.` : r.reason || "Nobody is executed.";
+  if (!ballots.length) { then(); return; }
+  ds.reveal = { key: `D${s.day}R${ds.round}`, round: ds.round, ballots, outcome }; save();
+  A.ui.overlay = { type: "votes", ballots, outcome, round: ds.round, then }; emit();
+}
+export function finishVotes() { const ov = A.ui.overlay; A.ui.overlay = null; emit(); if (ov && ov.then) ov.then(); }
 export function execPick(id: string) {
   const name = E.pname(A.s, id);
+  const go = () => { if (cmd(`Day ${A.s.day}: execute ${name}`, s => E.quickExecute(s, id))) { executionScene(id); emit(); } };
   confirmSheet({ title: `Execute ${name}?`, body: "Death abilities trigger immediately. You can undo this.", ok: `Execute ${name}`, danger: true,
-    onOk: () => { if (cmd(`Day ${A.s.day}: execute ${name}`, s => E.quickExecute(s, id))) { executionScene(id); emit(); } } });
+    onOk: () => lastWordsThen(id, go) });
 }
 export function voteSkip() { confirmSheet({ title: "Skip execution?", body: "Nobody is executed today.", ok: "Skip", onOk: () => cmd(`Day ${A.s.day}: no vote`, s => E.skipVote(s)) }); }
 export function voteOpen() { const ids = A.s.players.filter(p => p.alive).map(p => p.id); cmd(`Day ${A.s.day}: let phones vote`, s => E.openVote(s, ids)); }
@@ -351,7 +377,8 @@ export function voteClose() { cmd(`Day ${A.s.day}: close phone voting`, s => E.c
 export function voteManual(pid: string, v: string) { const s = A.s; const ds = s.dayState; const p = E.getP(s, pid); if (!ds || !ds.open || !p || !E.canVote(s, p)) return; if (v) ds.votes[p.id] = v; else delete ds.votes[p.id]; save(); Sound.tick(); emit(); }
 export function voteConfirm() {
   const s = A.s; const t = E.tally(s); const r = t.result; const nm = (id: string) => id === "skip" ? "no execution" : E.pname(s, id);
-  const go = () => { if (cmd(`Day ${A.s.day} vote`, s2 => E.confirmVote(s2))) { const res = A.s.dayState && A.s.dayState.result; if (res && res.type === "execute") executionScene(res.target); emit(); } };
+  const exec = () => { if (cmd(`Day ${A.s.day} vote`, s2 => E.confirmVote(s2))) { const res = A.s.dayState && A.s.dayState.result; if (res && res.type === "execute") executionScene(res.target); emit(); } };
+  const go = () => revealVotes(() => (r.type === "execute" ? lastWordsThen(r.target, exec) : exec()));
   if (r.type === "execute") confirmSheet({ title: `Execute ${nm(r.target)}?`, body: `${nm(r.target)} received ${t.totals[r.target]} vote${t.totals[r.target] === 1 ? "" : "s"}. Death abilities trigger immediately. You can undo this.`, ok: `Execute ${nm(r.target)}`, danger: true, onOk: go });
   else if (r.type === "revote") confirmSheet({ title: "Tie — hold a revote?", body: `${r.tied.map(nm).join(" and ")} are tied. Votes are cleared and only they stay on trial.`, ok: "Start the revote", onOk: go });
   else if (r.type === "random") confirmSheet({ title: "Tie — pick at random?", body: `${r.tied.map(nm).join(" and ")} are tied. One outcome is chosen at random.`, ok: "Pick at random", danger: true, onOk: go });
