@@ -413,6 +413,7 @@ function Ended() {
     <div className="stack" style={{ marginTop: 18 }}>
       <button className="btn block primary" onClick={act.rematch}><Icon name="dice" />Rematch — reshuffle and go</button>
       <button className="btn block" onClick={act.playAgain}><Icon name="refresh" />Play again with these players</button>
+      <button className="btn block ghost" onClick={() => act.openSheet("stats")}><Icon name="users" />Your group’s stats</button>
     </div>
     <section className="section">
       <h2 className="title">Winners</h2>

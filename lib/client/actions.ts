@@ -1,7 +1,7 @@
 "use client";
 // Everything the Game Master can do. Each function is the old app's handler, unchanged in behaviour.
 import E from "@/lib/engine/engine";
-import { recordPlayed, playedHistory, rateGame } from "./history";
+import { recordPlayed, playedHistory, rateGame, recordResult } from "./history";
 import type { Game, NightStep } from "@/lib/engine/engine";
 import { A, taste, emit, cmd, save, savePrefs, saveLibrary, setupMut, toast, confirmSheet, top0, resetUi, lastHist, effN, autoPool, roleCount, afterPlayersChange, plural, P, type View } from "./store";
 import { Sound } from "./sound";
@@ -399,7 +399,7 @@ export function restartDay() {
 }
 
 /* ---------- winning, ending and restarting ---------- */
-function winScene() { Sound.end(); A.ui.overlay = { type: "win" }; top0(); }
+function winScene() { Sound.end(); recordResult(A.s); A.ui.overlay = { type: "win" }; top0(); }
 export function endGameWin() { confirmSheet({ title: "End the game and reveal every role?", body: "The results screen shows all roles to everyone.", ok: "End the game", onOk: () => { if (cmd("End the game", s => E.endGame(s, s.winPrompt))) { winScene(); emit(); } } }); }
 export function dismissWin() { cmd("Keep playing", s => E.dismissWin(s)); }
 export function stalemateDraw() { confirmSheet({ title: "End the game as a draw?", body: "No faction wins. Survivors, Jesters and other independents are still judged on their own goals.", ok: "End as a draw", onOk: () => { if (cmd("End as a draw", s => E.endGame(s, { status: "over", faction: "draw", reason: "Stalemate — nobody could be eliminated.", winners: E.computeWinners(s, "draw") }))) { winScene(); emit(); } } }); }
