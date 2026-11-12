@@ -24,7 +24,7 @@ export function RolesView() {
       <div className="seg" style={{ marginTop: 10 }} role="group" aria-label="Filter">{FILTERS.map(([k, l]) => <button key={k} onClick={() => { A.ui.libFilter = k; emit(); }} aria-pressed={f === k}>{l}</button>)}</div>
       <div className="list" style={{ marginTop: 10 }}>
         {roles.length ? roles.map(r => (
-          <button key={r.id} className="li" onClick={() => act.openSheet("role", { id: r.id })} style={{ border: 0, background: "none", color: "inherit", textAlign: "left", width: "100%", opacity: A.prefs.disabled.includes(r.id) ? 0.5 : 1 }}>
+          <button key={r.id} className="li" onClick={() => act.openSheet("role", { id: r.id })} style={{ border: 0, background: "none", color: "inherit", textAlign: "left", width: "100%" }}>
             <Icon name={r.icon} size="lg" />
             <span className="grow"><b style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>{r.name}<span className={`team ${r.team}`}>{teamName(r.team)}</span>{r.custom && <span className="chip" style={{ height: 22 }}>Custom</span>}{A.prefs.disabled.includes(r.id) && <span className="chip muted" style={{ height: 22 }}>Off</span>}</b><span>{r.short}</span></span>
           </button>

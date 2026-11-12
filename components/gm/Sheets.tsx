@@ -34,8 +34,8 @@ function Confirm({ sh }: { sh: any }) {
 
 function MenuRow({ icon, title, desc, onClick, disabled, danger }: { icon: string; title: string; desc: string; onClick: () => void; disabled?: boolean; danger?: boolean }) {
   return (
-    <button className="li" onClick={onClick} disabled={disabled} style={{ border: 0, background: "none", color: danger ? "var(--blood)" : "inherit", textAlign: "left", width: "100%", opacity: disabled ? 0.4 : 1 }}>
-      <Icon name={icon} /><span className="grow"><b>{title}</b><span>{desc}</span></span><Icon name="chev" size="sm" />
+    <button className="li" onClick={onClick} disabled={disabled} style={{ border: 0, background: "none", color: disabled ? "var(--ink-2)" : danger ? "var(--blood)" : "inherit", textAlign: "left", width: "100%", cursor: disabled ? "not-allowed" : undefined }}>
+      <Icon name={icon} /><span className="grow"><b>{title}</b><span>{desc}</span></span>{!disabled && <Icon name="chev" size="sm" />}
     </button>
   );
 }

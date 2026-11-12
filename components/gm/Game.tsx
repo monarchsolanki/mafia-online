@@ -104,7 +104,7 @@ function StepStrip({ steps, idx }: { steps: NightStep[]; idx: number }) {
     <nav aria-label="Night order" className="seg" style={{ width: "100%", background: "none", padding: 0, gap: 6 }}>
       {steps.map((st, i) => { const ss = act.stepState(st);
         return <button key={st.key} onClick={() => act.nightStep(i)} aria-pressed={i === idx} aria-current={i === idx ? "step" : undefined}
-          style={{ background: i === idx ? undefined : "color-mix(in oklab, var(--ink) 8%, transparent)", opacity: ss && i !== idx ? 0.6 : 1 }}>
+          style={{ background: i === idx ? undefined : "color-mix(in oklab, var(--ink) 8%, transparent)" }}>
           {ss === "done" ? "✓ " : ss === "skip" ? "– " : ""}{st.title}{st.type === "bluff" ? " (bluff)" : ""}
         </button>; })}
       <button onClick={() => act.nightStep(steps.length)} aria-pressed={idx >= steps.length} style={{ background: idx >= steps.length ? undefined : "color-mix(in oklab, var(--ink) 8%, transparent)" }}>Resolve</button>
@@ -264,8 +264,8 @@ function Dawn() {
       <p className="small muted" style={{ marginTop: 4 }}>Show each one on a private screen. Results go only to the player named.</p>
       {Object.keys(byTo).length ? <div className="list" style={{ marginTop: 8 }}>{Object.keys(byTo).map(pid => { const p = P(pid); const k = N + ":" + pid; const done = A.ui.delivered[k];
         return (
-          <div className="li" key={pid} style={{ alignItems: "flex-start", opacity: done ? 0.55 : 1 }}>
-            <span className="grow"><b>{p.name}</b><span>{role(p.roleId).name}{p.alive ? "" : " · dead"}</span>
+          <div className="li" key={pid} style={{ alignItems: "flex-start" }}>
+            <span className="grow"><b>{p.name}{done && <span className="chip muted" style={{ height: 22, marginLeft: 8 }}>Told</span>}</b><span>{role(p.roleId).name}{p.alive ? "" : " · dead"}</span>
               {byTo[pid].map((m, i) => <span key={i} style={{ color: "var(--ink)", marginTop: 4 }}>{m.text}</span>)}
               <span className="row" style={{ marginTop: 10 }}><button className="btn sm primary" onClick={() => act.showPrivate(pid)}><Icon name="eye" size="sm" />Show {p.name}</button><button className="btn sm ghost" onClick={() => act.markDelivered(k)}>{done ? "Not told yet" : "Told them"}</button></span>
             </span>
