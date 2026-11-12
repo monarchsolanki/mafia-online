@@ -35,6 +35,20 @@ Bricolage Grotesque Variable, self-hosted (`next/font/local`), weight 200–800,
   `.well` (quiet tinted surface), `.list`/`.li`, `.dock` (the sticky primary action), `.sheet` (bottom sheet),
   `.stage` (full-screen moments), `.hold` (press-and-hold to reveal a secret).
 - Hover styles exist only under `@media (hover: hover)`, so a tap never leaves a sticky state on a phone.
+
+## Legibility (every phase colour, every state)
+The same components appear on nine different grounds, so legibility is a property of the tokens, not of each screen.
+- Text: `--ink` on `--ground` is at least 7:1 and `--ink-2` at least 4.5:1, **also on the tinted surfaces** (`.well`, `.tile`,
+  `.tgt`, `.btn`, up to 13% ink over the ground). Icons and control edges are at least 3:1. `tests/contrast.test.ts` checks
+  every act's tokens, so changing a colour that makes text hard to read fails the build.
+- **Never fade readable things with `opacity`.** A dimmed label on a coloured ground is what made "Pick a target", unavailable
+  targets and dead players unreadable. A state changes the *shape* instead:
+  - Disabled `.btn` / `.tgt`: no fill, a dashed edge, label in `--ink-2`. It reads as "not yet", never as "gone".
+  - Disabled `.iconbtn`: icon in a softer mix of `--ink-2`.
+  - Dead player tile: outlined, grey, name struck through, in `--ink-2`.
+- `.switch`: off is an **outlined** track with a small `--ink-2` thumb; on is a solid `--ink` track with a `--ground` thumb.
+  Never a faint fill. The thumb position also changes, so the state never depends on colour alone.
+- Placeholders and small labels (tab bar, chips) use `--ink-2` at full strength, not a 75–85% mix of it.
 - Touch targets are at least 44 px; primary actions 52–58 px.
 
 ## Motion

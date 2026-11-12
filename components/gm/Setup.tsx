@@ -30,7 +30,7 @@ function Progress() {
           const b = act.setupBlocked(i);
           return (
             <button key={l} onClick={() => act.setStep(i)} disabled={!!b && i > st} aria-current={st === i ? "step" : undefined} title={b && i > st ? b : undefined}
-              style={{ border: 0, background: "none", padding: "6px 0", textAlign: "left", color: st === i ? "var(--ink)" : "var(--ink-2)", opacity: b && i > st ? 0.45 : 1 }}>
+              style={{ border: 0, background: "none", padding: "6px 0", textAlign: "left", color: st === i ? "var(--ink)" : "var(--ink-2)", cursor: b && i > st ? "not-allowed" : undefined }}>
               <span style={{ display: "block", height: 4, borderRadius: 4, background: i <= st ? "var(--ink)" : "color-mix(in oklab, var(--ink) 16%, transparent)", transition: "background-color .4s" }} />
               <span className="tiny" style={{ display: "block", marginTop: 7, fontWeight: st === i ? 700 : 560 }}>{l}</span>
             </button>
@@ -228,7 +228,7 @@ function StepRoles() {
               </button>
               <div className="stepper">
                 <button className="iconbtn" onClick={() => act.poolDec(r.id)} disabled={!c} aria-label={`One fewer ${r.name}`}><Icon name="minus" size="sm" /></button>
-                <b aria-label={`${c} ${r.name}`} style={{ opacity: c ? 1 : 0.4 }}>{c}</b>
+                <b aria-label={`${c} ${r.name}`} style={{ color: c ? "var(--ink)" : "var(--ink-2)" }}>{c}</b>
                 <button className="iconbtn" onClick={() => act.poolInc(r.id)} aria-label={`One more ${r.name}`}><Icon name="plus" size="sm" /></button>
               </div>
             </div>); }) : <p className="small muted" style={{ padding: "14px 0" }}>{tab === "custom" && !q ? "No custom roles yet. Create one in the Roles tab." : "No roles match."}</p>}
