@@ -77,7 +77,10 @@ function markScene(key: string) { LS.set(SCENEKEY, seenScenes().concat(key).slic
 /** Announcements play once per phone: the morning's deaths, an execution, the end of the game. */
 function nextScene(j: any): Scene | null {
   const pv = j.publicView || {}; const code = S.me!.code; const seen = seenScenes();
-  if (pv.phase === "ended" && pv.result) { const k = `${code}:end:${pv.result.faction}`; return seen.includes(k) ? null : { kind: "win", key: k }; }
+  if (pv.phase === "ended" && pv.result) {
+    if (pv.execution) { const xk = `${code}:${pv.execution.key}:x`; if (!seen.includes(xk)) return { kind: "execution", key: xk }; } // the execution that ended the game comes first
+    const k = `${code}:end:${pv.result.faction}`; return seen.includes(k) ? null : { kind: "win", key: k };
+  }
   if (pv.phase !== "day") return null;
   // in the order they happened: the morning, the ballots, the execution
   if (pv.announce) { const k = `${code}:D${pv.announce.day}:a`; if (!seen.includes(k)) return { kind: "announce", key: k }; }

@@ -31,7 +31,9 @@ export function publicView(s: Game): any {
   const ds = s.dayState;
   if (s.phase === "day" && ds && ds.open) pv.vote = { key: `D${s.day}R${ds.round}`, round: ds.round, allowSkip: !!s.config.allowSkip,
     nominees: ds.nominees.map(id => ({ id, name: E.pname(s, id) })), eligible: s.players.filter(p => E.canVote(s, p)).map(p => p.id) };
-  if (s.phase === "day" && ds && ds.done && ds.result) {
+  // a game can end on the execution itself (the Jester): phones still hear the execution, then the end
+  const endedOnTheDay = s.phase === "ended" && s.day >= 1 && s.day === s.night;
+  if ((s.phase === "day" || endedOnTheDay) && ds && ds.done && ds.result) {
     const r = ds.result;
     pv.voteResult = r.type === "execute" ? (r.spared ? `${E.pname(s, r.target)} was voted out — but survived as the Prince.` : `${E.pname(s, r.target)} was executed.`) : (r.reason || "Nobody was executed.");
     if (r.type === "execute") {

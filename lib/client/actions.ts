@@ -340,7 +340,9 @@ export function guessGo(gid: string, t: string, r: string) {
 function executionScene(targetId: string) {
   const s = A.s; const r = s.dayState && s.dayState.result;
   const d = s.deaths.slice().reverse().find(x => x.id === targetId && x.execution);
-  A.ui.overlay = { type: "execution", name: E.pname(s, targetId), spared: !!(r && r.spared), role: d ? d.publicRole : null, hidden: !!(d && s.config.revealOnDeath && d.cleaned), cause: r && r.spared ? null : "executed by the town" };
+  A.ui.overlay = { type: "execution", name: E.pname(s, targetId), spared: !!(r && r.spared), role: d ? d.publicRole : null, hidden: !!(d && s.config.revealOnDeath && d.cleaned), cause: r && r.spared ? null : "executed by the town",
+    // an executed Jester wins and the game is already over: after the execution comes the end
+    after: s.phase === "ended" ? () => { winScene(); emit(); } : undefined };
 }
 /* ---------- vote drama: the ballots one by one, then the accused's last words ---------- */
 /** Before an execution: a countdown for the accused to speak, on this phone and every player's phone. */

@@ -35,7 +35,8 @@ const CFG: [string, Cfg[]][] = [
     ["convertCap", "sel", "Largest size of the Cult or Vampires", "", rng(2, 8)],
   ]],
   ["Neutral roles", [
-    ["jesterHaunt", "bool", "An executed Jester haunts one of their voters"],
+    ["jesterEnds", "bool", "The game ends when the Jester is executed", "The Jester wins and the game is over on the spot: no haunting. Turn off to play on, with the other sides still going."],
+    ["jesterHaunt", "bool", "An executed Jester haunts one of their voters", "Only when the game plays on after the Jester wins.", null, (s: Game) => s.config.jesterEnds === false],
     ["exeFallback", "sel", "An Executioner whose target dies another way becomes", "", [["jester", "Jester"], ["survivor", "Survivor"]]],
     ["guessShots", "sel", "Guesser shots per game", "Applies to roles dealt after the change.", rng(1, 5)],
     ["guessWrong", "sel", "A wrong guess", "", [["die", "Kills the guesser"], ["lose", "Ends their guessing"], ["nothing", "Has no penalty"]]],

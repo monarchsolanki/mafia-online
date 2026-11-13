@@ -70,6 +70,7 @@ export function migrate(s: Game) {
   s.setup.disabled = A.prefs.disabled.slice();
   if ((s.config.cfgv || 1) < 2) { s.config.godfatherInnocent = false; s.config.nkSuspicious = false; s.config.cfgv = 2; } // Police: thumbs up only for Mafia
   if ((s.config.cfgv || 1) < 3) { s.config.mayorWeight = "auto"; s.config.mayorOnce = false; s.config.cfgv = 3; } // Mayor: 3 votes above 7 alive, then 2
+  if ((s.config.cfgv || 1) < 4) { s.config.jesterEnds = true; s.config.cfgv = 4; } // an executed Jester wins and the game ends
 }
 
 export function save() {
