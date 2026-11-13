@@ -62,7 +62,7 @@ export interface Report {
   messages: Message[]; lines: string[]; publicNotes: string[]; visits: { from: string; to: string; kind: string }[]; cancelled: { actor: string; kind: string; why: string }[]; why?: string[];
 }
 export interface Action { key: string; actor: string; ab: string; targets: string[]; opts: Record<string, any>; at?: number }
-export interface WinCheck { status: "ongoing" | "over" | "showdown"; faction?: string; reason?: string; winners?: { id: string; why: string }[]; pending?: string[] }
+export interface WinCheck { status: "ongoing" | "over" | "showdown"; faction?: string; reason?: string; winners?: { id: string; why: string }[]; pending?: string[]; auto?: boolean }
 export interface Pending { id: string; type: "hunter" | "haunt"; actor: string; choices?: string[] }
 export interface DayState { nominees: string[]; votes: Record<string, string>; open: boolean; round: number; done: boolean; result: any; startedAt: number;
   reveal?: { key: string; round: number; ballots: { from: string; to: string; w?: number }[]; outcome: string }; lastWords?: { target: string; endsAt: number; total: number } }

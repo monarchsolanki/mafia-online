@@ -43,7 +43,7 @@ export const TIPS: Record<string, string[]> = {
   ambusher: ["Wait outside a house and attack whoever visits it.", "Ambush the player the Doctor is likely to protect.", "You can catch Town roles in the act."],
   poisoner: ["Poison a player — they die the following night unless cured.", "A Doctor's heal cures poison, so target the unprotected.", "Poison buys time for your team."],
   evilguesser: ["By day, name a player and their exact role to kill them.", "Wrong guesses can cost you.", "Use what your team learned at night."],
-  jester: ["You win if the town executes you.", "Act suspicious — but not so obviously that they see through you.", "Don't get killed at night; that doesn't count."],
+  jester: ["You win the moment the town executes you — the game ends right there.", "Act suspicious — but not so obviously that they see through you.", "Don't get killed at night; that doesn't count."],
   executioner: ["You have a target: get them executed by the town to win.", "Push suspicion onto your target without seeming obsessed.", "If your target dies another way, you change role."],
   survivor: ["You win if you're alive at the end — whoever wins.", "You have four vests (Basic defense); wear one when you feel targeted.", "Side with whoever is winning."],
   guardian: ["You have a target: keep them alive to the end — even if you die.", "Shield them (twice per game) when they're most at risk.", "If they die, you become a Survivor."],

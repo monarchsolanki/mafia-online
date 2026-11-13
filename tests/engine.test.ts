@@ -338,6 +338,45 @@ const invCheck = (s, inv, target) => { const act = { key: inv.id, actor: inv.id,
   f = dayWith(7); E.quickExecute(f, f.players[6].id); E.endGame(f, f.winPrompt); ok(!f.result.forced, 'review: a real win is not forced');
 }
 
+/* ---------- The Jester: executed means the Jester wins and the game ends, no haunting ---------- */
+{
+  const jesterGame = (cfg: Record<string, any> = {}) => {
+    let g = E.newGame(); Object.assign(g.config, cfg);
+    ['Virti', 'jainik', 'rashi', 'unnat', 'vandit', 'heer', 'krisha'].forEach(n => E.addPlayer(g, n));
+    ['mafia', 'jester', 'doctor', 'investigator', 'villager', 'jailkeeper', 'mafia'].forEach((r, i) => E.setRole(g, g.players[i], r));
+    E.startGame(g); g = E.resolveNight(g); E.startDay(g); return g;
+  };
+  const J = (g: any) => g.players[1];
+  const voteOut = (g: any, target: any, by: number) => { E.openVote(g, g.players.filter((p: any) => p.alive).map((p: any) => p.id)); for (const p of g.players.filter((p: any) => p.id !== target.id).slice(0, by)) E.castVote(g, p.id, target.id); E.confirmVote(g); };
+  // the game from the log: 4 Town and 2 Mafia are still alive, and the Jester is executed
+  let g = jesterGame(); E.quickExecute(g, J(g).id);
+  ok(g.phase === 'ended' && g.winPrompt === null, 'jester: the game ends at once, with no prompt to confirm');
+  ok(g.result?.faction === 'solo:' + J(g).id && g.result?.factionName === 'jainik the Jester', 'jester: the Jester is declared the winner');
+  ok(g.result?.winners?.length === 1 && /Executed as the Jester/.test(g.result.winners[0].why), 'jester: the Jester is the winner, and only the Jester');
+  ok(g.pending.length === 0, 'jester: no haunting');
+  ok(/jainik the Jester wins\./.test(g.events.map((e: any) => e.text).join('\n')), 'jester: the log says the Jester wins');
+  ok(E.story(g)?.headline === 'jainik the Jester wins.', 'jester: the story card says so');
+  // by a phone vote, with the voters on record: the same, and still no haunt
+  g = jesterGame(); voteOut(g, J(g), 4);
+  ok(g.phase === 'ended' && g.pending.length === 0 && g.result?.faction === 'solo:' + J(g).id, 'jester: a vote ends the game the same way');
+  // saved games that do not have the setting yet behave as if it were on
+  g = jesterGame(); delete g.config.jesterEnds; E.quickExecute(g, J(g).id);
+  ok(g.phase === 'ended', 'jester: a game without the setting ends too');
+  // only an execution counts: killed at night, or any other player executed, the game goes on
+  g = jesterGame(); E.manualKill(g, J(g).id, 'killed by the Mafia');
+  ok(g.phase === 'day' && !J(g).meta.won, 'jester: dying any other way is not a win');
+  g = jesterGame(); E.quickExecute(g, g.players[4].id);
+  ok(g.phase === 'day', 'jester: someone else being executed does not end it');
+  // the rule can be switched off: the game plays on, the Jester has won, and haunts a voter
+  g = jesterGame({ jesterEnds: false }); voteOut(g, J(g), 4);
+  ok(g.phase === 'day' && J(g).meta.won === true && E.evaluateWin(g).status === 'ongoing', 'jester (rule off): the game plays on with the Jester\'s win banked');
+  ok(g.pending.length === 1 && g.pending[0].type === 'haunt', 'jester (rule off): the haunt is offered');
+  // and then the Town finishes it: the Jester is still listed among the winners
+  for (const m of g.players.filter((p: any) => p.alive && p.team === 'mafia')) E.manualKill(g, m.id, 'executed');
+  const fin = E.evaluateWin(g);
+  ok(fin.status === 'over' && fin.faction === 'town' && fin.winners.some((w: any) => w.id === J(g).id), 'jester (rule off): the Jester still shares the Town\'s win');
+}
+
 test("every engine rule check passes", () => {
   expect(fails).toEqual([]);
   expect(pass).toBeGreaterThan(50);
