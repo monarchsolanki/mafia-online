@@ -49,6 +49,11 @@ The same components appear on nine different grounds, so legibility is a propert
 - `.switch`: off is an **outlined** track with a small `--ink-2` thumb; on is a solid `--ink` track with a `--ground` thumb.
   Never a faint fill. The thumb position also changes, so the state never depends on colour alone.
 - Placeholders and small labels (tab bar, chips) use `--ink-2` at full strength, not a 75–85% mix of it.
+- **Check in Safari's engine, with a recolouring extension on, not only in Chromium.** A browser "dark mode" extension (Dark Reader and
+  similar) turns light fills dark: the white toggle track, the primary button and the selected target all collapse into the
+  background, while text stays readable. The root layout sends `<meta name="darkreader-lock">` so those extensions leave the app
+  alone (the app already paints its own phase light); `tests/contrast.test.ts` checks the tag is there. A state that is shown *only* by a
+  light fill is fragile, so prefer a shape or text cue as well.
 - Touch targets are at least 44 px; primary actions 52–58 px.
 
 ## Motion

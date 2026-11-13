@@ -45,6 +45,16 @@ describe("phase colours stay legible", () => {
   }
 });
 
+describe("browser dark-mode extensions leave the app alone", () => {
+  // Dark Reader and its relatives recolour pages they think are light. On an iPhone it turned the white toggle tracks and the button
+  // fills dark, so they vanished into the (already dark) background while the text stayed readable. The documented opt-out is this tag.
+  // Next.js drops metadata with an empty value, so the value must not be empty.
+  const layout = readFileSync(path.resolve(import.meta.dirname, "../app/layout.tsx"), "utf8");
+  test("the root layout sends <meta name=\"darkreader-lock\"> with a non-empty value", () => {
+    expect(layout).toMatch(/other:\s*\{[^}]*"darkreader-lock":\s*"[^"]+"/);
+  });
+});
+
 describe("nothing readable is faded with opacity", () => {
   // a dimmed label on a coloured ground is what made disabled buttons and unavailable targets unreadable
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim(), body: m[2] }));
