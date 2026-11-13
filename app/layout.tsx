@@ -18,6 +18,10 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
   appleWebApp: { capable: true, title: "Omertà", statusBarStyle: "black-translucent" },
+  // Every screen already paints its own phase light. A browser "dark mode" extension (Dark Reader and its relatives) recolours pages
+  // it thinks are light: it turned the white toggle tracks and the button fills dark, so on a phone they vanished into the background.
+  // This is the documented way to tell it to leave the page alone.
+  other: { "darkreader-lock": "true" },
 };
 
 export const viewport: Viewport = {
